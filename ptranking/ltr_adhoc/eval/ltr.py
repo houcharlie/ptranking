@@ -332,6 +332,7 @@ class LTREvaluator():
             for epoch_k in range(1, epochs + 1):
                 torch_fold_k_epoch_k_loss, stop_training = ranker.train(train_data=train_data, epoch_k=epoch_k,
                                                                         presort=train_presort, label_type=label_type)
+                print(f'Fold {0}   Epoch {1}   Loss {2}'.format(fold_k, epoch_k, torch_fold_k_epoch_k_loss))                                                        
                 ranker.scheduler.step()  # adaptive learning rate with step_size=40, gamma=0.5
 
                 if stop_training:
@@ -343,6 +344,7 @@ class LTREvaluator():
                                                                     vali_metric=vali_metric, label_type=label_type,
                                                                     max_label=max_label, presort=validation_presort)
                         vali_metric_value = torch_vali_metric_value.squeeze(-1).data.numpy()
+                        print(f'Validation metric {0}'.format(vali_metric_value)) 
                         vali_tape.epoch_validation(ranker=ranker, epoch_k=epoch_k, metric_value=vali_metric_value)
                     if do_summary:  # summarize per-step performance w.r.t. train, test
                         summary_tape.epoch_summary(ranker=ranker, torch_epoch_k_loss=torch_fold_k_epoch_k_loss,
