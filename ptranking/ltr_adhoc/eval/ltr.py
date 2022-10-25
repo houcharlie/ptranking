@@ -28,11 +28,12 @@ from ptranking.ltr_adhoc.listwise.approxNDCG import ApproxNDCG, ApproxNDCGParame
 from ptranking.ltr_adhoc.listwise.wassrank.wassRank import WassRank, WassRankParameter
 from ptranking.ltr_adhoc.listwise.st_listnet import STListNet, STListNetParameter
 from ptranking.ltr_adhoc.listwise.lambdaloss import LambdaLoss, LambdaLossParameter
+from ptranking.ltr_adhoc.pretrain.simsiam import SimSiam, SimSiamParameter
 
 LTR_ADHOC_MODEL = ['RankMSE',
                    'RankNet',
                    'RankCosine', 'ListNet', 'ListMLE', 'STListNet', 'ApproxNDCG', 'WassRank', 'LambdaRank', 'SoftRank',
-                   'LambdaLoss', 'TwinRank']
+                   'LambdaLoss', 'TwinRank', 'SimSiam']
 
 class LTREvaluator():
     """
@@ -167,7 +168,7 @@ class LTREvaluator():
             ranker = globals()[model_id](sf_para_dict=sf_para_dict, gpu=self.gpu, device=self.device)
 
         elif model_id in ['RankNet', 'LambdaRank', 'STListNet', 'ApproxNDCG', 'DirectOpt', 'LambdaLoss', 'MarginLambdaLoss',
-                          'MDPRank', 'ExpectedUtility', 'MDNExpectedUtility', 'RankingMDN', 'SoftRank', 'TwinRank']:
+                          'MDPRank', 'ExpectedUtility', 'MDNExpectedUtility', 'RankingMDN', 'SoftRank', 'TwinRank', 'SimSiam']:
             ranker = globals()[model_id](sf_para_dict=sf_para_dict, model_para_dict=model_para_dict, gpu=self.gpu, device=self.device)
 
         elif model_id == 'WassRank':

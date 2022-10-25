@@ -572,6 +572,7 @@ class NeuralRanker(Evaluator):
         label_type, presort = kwargs['label_type'], kwargs['presort']
         num_queries = 0
         epoch_loss = torch.tensor([0.0], device=self.device)
+        batches_processed = 0
         for batch_ids, batch_q_doc_vectors, batch_std_labels in train_data: # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
             num_queries += len(batch_ids)
             if self.gpu: batch_q_doc_vectors, batch_std_labels = batch_q_doc_vectors.to(self.device), batch_std_labels.to(self.device)
@@ -582,6 +583,9 @@ class NeuralRanker(Evaluator):
                 break
             else:
                 epoch_loss += batch_loss.item()
+            batches_processed += 1
+            if batches_processed % 10 == 0:
+                print("Loss at batch {0}: {1}".format(batches_processed, batch_loss))
 
         epoch_loss = epoch_loss/num_queries
         return epoch_loss, stop_training

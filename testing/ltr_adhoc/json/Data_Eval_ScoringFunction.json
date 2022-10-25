@@ -44,7 +44,8 @@
       "layers":[5],
       "AF":["GE"],
       "TL_AF":["GE"],
-      "apply_tl_af":[true]
+      "apply_tl_af":[true],
+      "out_dim":[100]
     },
     "listsf":{
       "BN":[true],

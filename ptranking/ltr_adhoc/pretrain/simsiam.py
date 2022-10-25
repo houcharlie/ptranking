@@ -7,7 +7,10 @@ import torch.nn as nn
 import os
 from ptranking.base.utils import get_stacked_FFNet
 from ptranking.base.ranker import NeuralRanker
-from augmentations import zeroes
+from ptranking.ltr_adhoc.pretrain.augmentations import zeroes
+from ptranking.data.data_utils import LABEL_TYPE
+from ptranking.ltr_adhoc.eval.parameter import ModelParameter
+from absl import logging
 class SimSiam(NeuralRanker):
     ''' SimSiam '''
     """
@@ -21,14 +24,15 @@ class SimSiam(NeuralRanker):
     Projector: dim -> dim
     Predictor: dim -> dim/4 -> dim
     """
-    def __init__(self, id='SimSiamPretrainer', sf_para_dict=None, weight_decay=1e-3, gpu=False, device=None):
+    def __init__(self, id='SimSiamPretrainer', sf_para_dict=None, model_para_dict=None, weight_decay=1e-3, gpu=False, device=None):
         super(SimSiam, self).__init__(id=id, sf_para_dict=sf_para_dict, weight_decay=weight_decay, gpu=gpu, device=device)
+        self.aug_percent = model_para_dict['aug_percent']
 
     def init(self):
         self.point_sf = self.config_point_neural_scoring_function()
         self.projector = self.config_projector()
         self.predictor = self.config_predictor()
-        self.aug_percent = self.sf_para_dict[self.sf_para_dict['sf_id']]['aug_percent']
+        self.mseloss = torch.nn.MSELoss().to(self.device)
         self.config_optimizer()
 
     def config_point_neural_scoring_function(self):
@@ -37,6 +41,7 @@ class SimSiam(NeuralRanker):
         return point_sf
 
     def config_projector(self):
+        import ipdb; ipdb.set_trace()
         dim = self.sf_para_dict[self.sf_para_dict['sf_id']]['out_dim']
         prev_dim = self.sf_para_dict[self.sf_para_dict['sf_id']]['out_dim']
         projector = nn.Sequential(nn.Linear(prev_dim, prev_dim, bias=False),
@@ -76,8 +81,10 @@ class SimSiam(NeuralRanker):
         '''
         Initialization of a feed-forward neural network
         '''
+        encoder_layers = num_layers - 1
+        out_dim = h_dim
         ff_dims = [num_features]
-        for i in range(num_layers):
+        for i in range(encoder_layers):
             ff_dims.append(h_dim)
         ff_dims.append(out_dim)
 
@@ -91,8 +98,10 @@ class SimSiam(NeuralRanker):
         @param batch_q_doc_vectors: [batch_size, num_docs, num_features], the latter two dimensions {num_docs, num_features} denote feature vectors associated with the same query.
         @return:
         '''
-        x1 = zeroes(batch_q_doc_vectors)
-        x2 = zeroes(batch_q_doc_vectors)
+        data_dim = batch_q_doc_vectors.shape[2]
+        x_flat = batch_q_doc_vectors.reshape((-1, data_dim))
+        x1 = zeroes(x_flat, self.aug_percent)
+        x2 = zeroes(x_flat, self.aug_percent)
 
         z1 = self.projector(self.point_sf(x1))
         z2 = self.projector(self.point_sf(x2))
@@ -123,37 +132,97 @@ class SimSiam(NeuralRanker):
     
     def custom_loss_function(self, batch_preds, batch_std_labels, **kwargs):
         '''
-        @param batch_preds: [batch, ranking_size] each row represents the relevance predictions for documents associated with the same query
-        @param batch_std_labels: [batch, ranking_size] each row represents the standard relevance grades for documents associated with the same query
+        @param batch_preds: [batch_size, num_docs, num_features]
+        @param batch_std_labels: not used
         @param kwargs:
         @return:
         '''
-        assert 'label_type' in kwargs and LABEL_TYPE.MultiLabel == kwargs['label_type']
-        label_type = kwargs['label_type']
-        assert 'presort' in kwargs and kwargs['presort'] is True  # aiming for direct usage of ideal ranking
+        p1, p2, z1, z2 = batch_preds
+        p1_unit = p1/torch.linalg.norm(p1)
+        p2_unit = p2/torch.linalg.norm(p2)
+        z1_unit = z1/torch.linalg.norm(z1)
+        z2_unit = z2/torch.linalg.norm(z2)
 
-        # sort documents according to the predicted relevance
-        batch_descending_preds, batch_pred_desc_inds = torch.sort(batch_preds, dim=1, descending=True)
-        # reorder batch_stds correspondingly so as to make it consistent.
-        # BTW, batch_stds[batch_preds_sorted_inds] only works with 1-D tensor
-        batch_predict_rankings = torch.gather(batch_std_labels, dim=1, index=batch_pred_desc_inds)
+        loss = 0.5 * (self.mseloss(p1_unit, z1_unit) + self.mseloss(p2_unit, z2_unit))
 
-        batch_p_ij, batch_std_p_ij = get_pairwise_comp_probs(batch_preds=batch_descending_preds,
-                                                             batch_std_labels=batch_predict_rankings,
-                                                             sigma=self.sigma)
-
-        batch_delta_ndcg = get_delta_ndcg(batch_ideal_rankings=batch_std_labels,
-                                          batch_predict_rankings=batch_predict_rankings,
-                                          label_type=label_type, device=self.device)
-
-        _batch_loss = F.binary_cross_entropy(input=torch.triu(batch_p_ij, diagonal=1),
-                                             target=torch.triu(batch_std_p_ij, diagonal=1),
-                                             weight=torch.triu(batch_delta_ndcg, diagonal=1), reduction='none')
-
-        batch_loss = torch.sum(torch.sum(_batch_loss, dim=(2, 1)))
 
         self.optimizer.zero_grad()
-        batch_loss.backward()
+        loss.backward()
         self.optimizer.step()
 
-        return batch_loss
+        return loss
+    
+    def train_op(self, batch_q_doc_vectors, batch_std_labels, **kwargs):
+        '''
+        The training operation over a batch of queries.
+        @param batch_q_doc_vectors: [batch_size, num_docs, num_features], the latter two dimensions {num_docs, num_features} denote feature vectors associated with the same query.
+        @param batch_std_labels: [batch, ranking_size] each row represents the standard relevance labels for documents associated with the same query.
+        @param kwargs: optional arguments
+        @return:
+        '''
+        batch_preds = self.forward(batch_q_doc_vectors)
+
+        return self.custom_loss_function(batch_preds, batch_std_labels, **kwargs), False
+    
+    def validation(self, vali_data=None, vali_metric=None, k=5, presort=False, max_label=None, label_type=LABEL_TYPE.MultiLabel, device='cpu'):
+        self.eval_mode() # switch evaluation mode
+
+        num_queries = 0
+        sum_val_loss = torch.zeros(1)
+        for batch_ids, batch_q_doc_vectors, batch_std_labels in vali_data:  # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
+            if batch_std_labels.size(1) < k:
+                continue  # skip if the number of documents is smaller than k
+            else:
+                num_queries += len(batch_ids)
+
+            if self.gpu: batch_q_doc_vectors = batch_q_doc_vectors.to(self.device)
+            batch_preds = self.predict(batch_q_doc_vectors)
+            val_loss = self.custom_loss_function(batch_preds)
+
+            sum_val_loss += val_loss # due to batch processing
+
+        avg_val_loss = val_loss / num_queries
+        return avg_val_loss
+
+###### Parameter of LambdaRank ######
+
+class SimSiamParameter(ModelParameter):
+    ''' Parameter class for SimSiam '''
+    def __init__(self, debug=False, para_json=None):
+        super(SimSiamParameter, self).__init__(model_id='SimSiam', para_json=para_json)
+        self.debug = debug
+
+    def default_para_dict(self):
+        """
+        Default parameter setting for SimSiam
+        :return:
+        """
+        self.simsiam_para_dict = dict(model_id=self.model_id, aug_percent=0.7)
+        return self.simsiam_para_dict
+
+    def to_para_string(self, log=False, given_para_dict=None):
+        """
+        String identifier of parameters
+        :param log:
+        :param given_para_dict: a given dict, which is used for maximum setting w.r.t. grid-search
+        :return:
+        """
+        # using specified para-dict or inner para-dict
+        simsiam_para_dict = given_para_dict if given_para_dict is not None else self.simsiam_para_dict
+
+        s1, s2 = (':', '\n') if log else ('_', '_')
+        simsiam_para_str = s1.join(['aug_percent', '{:,g}'.format(simsiam_para_dict['aug_percent'])])
+        return simsiam_para_str
+
+    def grid_search(self):
+        """
+        Iterator of parameter settings for simsiam
+        """
+        if self.use_json:
+            choice_aug = self.json_dict['aug_percent']
+        else:
+            choice_aug = [0.3, 0.7] if self.debug else [0.7]  # 1.0, 10.0, 50.0, 100.0
+
+        for aug_percent in choice_aug:
+            self.simsiam_para_dict = dict(model_id=self.model_id, aug_percent=aug_percent)
+            yield self.simsiam_para_dict
