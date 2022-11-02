@@ -713,25 +713,29 @@ class CVTape(object):
         self.nerr_cv_avg_scores = np.zeros(len(cutoffs))
         self.ap_cv_avg_scores = np.zeros(len(cutoffs))
         self.p_cv_avg_scores = np.zeros(len(cutoffs))
+        self.ndcg0_cv_avg_scores = np.zeros(len(cutoffs))
         self.time_begin = datetime.datetime.now() # timing
         if reproduce:
             self.list_per_q_p = []
             self.list_per_q_ap = []
             self.list_per_q_nerr = []
             self.list_per_q_ndcg = []
+            self.list_per_q_ndcg0 = []
 
     def fold_evaluation(self, ranker, test_data, max_label, fold_k, model_id):
-        avg_ndcg_at_ks, avg_nerr_at_ks, avg_ap_at_ks, avg_p_at_ks = \
+        avg_ndcg_at_ks, avg_nerr_at_ks, avg_ap_at_ks, avg_p_at_ks, avg_ndcg0_at_ks = \
             ranker.adhoc_performance_at_ks(test_data=test_data, ks=self.cutoffs, device='cpu', max_label=max_label)
         fold_ndcg_ks = avg_ndcg_at_ks.data.numpy()
         fold_nerr_ks = avg_nerr_at_ks.data.numpy()
         fold_ap_ks = avg_ap_at_ks.data.numpy()
         fold_p_ks = avg_p_at_ks.data.numpy()
+        fold_ndcg0_ks = avg_ndcg0_at_ks.data.numpy()
 
         self.ndcg_cv_avg_scores = np.add(self.ndcg_cv_avg_scores, fold_ndcg_ks)
         self.nerr_cv_avg_scores = np.add(self.nerr_cv_avg_scores, fold_nerr_ks)
         self.ap_cv_avg_scores = np.add(self.ap_cv_avg_scores, fold_ap_ks)
         self.p_cv_avg_scores = np.add(self.p_cv_avg_scores, fold_p_ks)
+        self.ndcg0_cv_avg_scores = np.add(self.ndcg0_cv_avg_scores, fold_ndcg0_ks)
 
 
         list_metric_strs = []
@@ -743,6 +747,8 @@ class CVTape(object):
                                                          metric='AP'))
         list_metric_strs.append(metric_results_to_string(list_scores=fold_p_ks, list_cutoffs=self.cutoffs,
                                                          metric='P'))
+        list_metric_strs.append(metric_results_to_string(list_scores=fold_ndcg0_ks, list_cutoffs=self.cutoffs,
+                                                         metric='nDCG-0'))
         metric_string = '\n\t'.join(list_metric_strs)
         print("\n{} on Fold - {}\n\t{}".format(model_id, str(fold_k), metric_string))
 
@@ -755,23 +761,26 @@ class CVTape(object):
         fold_opt_model = os.path.join(run_fold_k_dir, fold_opt_model_name)
         ranker.load(file_model=fold_opt_model, device=device)
 
-        avg_ndcg_at_ks, avg_nerr_at_ks, avg_ap_at_ks, avg_p_at_ks, list_per_q_ndcg, list_per_q_nerr, list_per_q_ap,\
-        list_per_q_p = ranker.adhoc_performance_at_ks(test_data=test_data, ks=self.cutoffs, device='cpu',
+        avg_ndcg_at_ks, avg_nerr_at_ks, avg_ap_at_ks, avg_p_at_ks, avg_ndcg0_at_ks, list_per_q_ndcg, list_per_q_nerr, list_per_q_ap,\
+        list_per_q_p, list_per_q_ndcg0 = ranker.adhoc_performance_at_ks(test_data=test_data, ks=self.cutoffs, device='cpu',
                                                       max_label=max_label, need_per_q=True)
         fold_ndcg_ks = avg_ndcg_at_ks.data.numpy()
         fold_nerr_ks = avg_nerr_at_ks.data.numpy()
         fold_ap_ks = avg_ap_at_ks.data.numpy()
         fold_p_ks = avg_p_at_ks.data.numpy()
+        fold_ndcg0_ks = avg_ndcg0_at_ks.data.numpy()
 
         self.list_per_q_p.extend(list_per_q_p)
         self.list_per_q_ap.extend(list_per_q_ap)
         self.list_per_q_nerr.extend(list_per_q_nerr)
         self.list_per_q_ndcg.extend(list_per_q_ndcg)
+        self.list_per_q_ndcg0.extend(list_per_q_ndcg0)
 
         self.ndcg_cv_avg_scores = np.add(self.ndcg_cv_avg_scores, fold_ndcg_ks)
         self.nerr_cv_avg_scores = np.add(self.nerr_cv_avg_scores, fold_nerr_ks)
         self.ap_cv_avg_scores = np.add(self.ap_cv_avg_scores, fold_ap_ks)
         self.p_cv_avg_scores = np.add(self.p_cv_avg_scores, fold_p_ks)
+        self.ndcg0_cv_avg_scores = np.add(self.ndcg0_cv_avg_scores, fold_ndcg0_ks)
 
 
         list_metric_strs = []
@@ -783,6 +792,8 @@ class CVTape(object):
                                                          metric='AP'))
         list_metric_strs.append(metric_results_to_string(list_scores=fold_p_ks, list_cutoffs=self.cutoffs,
                                                          metric='P'))
+        list_metric_strs.append(metric_results_to_string(list_scores=fold_ndcg0_ks, list_cutoffs=self.cutoffs,
+                                                         metric='nDCG-0'))
         metric_string = '\n\t'.join(list_metric_strs)
         print("\n{} on Fold - {}\n\t{}".format(model_id, str(fold_k), metric_string))
 
@@ -791,6 +802,7 @@ class CVTape(object):
         elapsed_time_str = str(time_end - self.time_begin)
 
         ndcg_cv_avg_scores = np.divide(self.ndcg_cv_avg_scores, self.fold_num)
+        ndcg0_cv_avg_scores = np.divide(self.ndcg0_cv_avg_scores, self.fold_num)
         nerr_cv_avg_scores = np.divide(self.nerr_cv_avg_scores, self.fold_num)
         ap_cv_avg_scores = np.divide(self.ap_cv_avg_scores, self.fold_num)
         p_cv_avg_scores = np.divide(self.p_cv_avg_scores, self.fold_num)
@@ -801,6 +813,8 @@ class CVTape(object):
         list_metric_strs = []
         list_metric_strs.append(metric_results_to_string(list_scores=ndcg_cv_avg_scores, list_cutoffs=self.cutoffs,
                                                          metric='nDCG'))
+        list_metric_strs.append(metric_results_to_string(list_scores=ndcg0_cv_avg_scores, list_cutoffs=self.cutoffs,
+                                                         metric='nDCG-0'))                                                 
         list_metric_strs.append(metric_results_to_string(list_scores=nerr_cv_avg_scores, list_cutoffs=self.cutoffs,
                                                          metric='nERR'))
         list_metric_strs.append(metric_results_to_string(list_scores=ap_cv_avg_scores, list_cutoffs=self.cutoffs,
@@ -816,11 +830,13 @@ class CVTape(object):
             torch_mat_per_q_ap = torch.cat(self.list_per_q_ap, dim=0)
             torch_mat_per_q_nerr = torch.cat(self.list_per_q_nerr, dim=0)
             torch_mat_per_q_ndcg = torch.cat(self.list_per_q_ndcg, dim=0)
+            torch_mat_per_q_ndcg0 = torch.cat(self.list_per_q_ndcg0, dim=0)
             #print('torch_mat_per_q_ndcg', torch_mat_per_q_ndcg.size())
             mat_per_q_p = torch_mat_per_q_p.data.numpy()
             mat_per_q_ap = torch_mat_per_q_ap.data.numpy()
             mat_per_q_nerr = torch_mat_per_q_nerr.data.numpy()
             mat_per_q_ndcg = torch_mat_per_q_ndcg.data.numpy()
+            mat_per_q_ndcg0 = torch_mat_per_q_ndcg0.data.numpy()
 
             pickle_save(target=mat_per_q_p, file=self.dir_run + '_'.join([self.model_id, 'all_fold_p_at_ks_per_q.np']))
             pickle_save(target=mat_per_q_ap,
@@ -829,6 +845,8 @@ class CVTape(object):
                         file=self.dir_run + '_'.join([self.model_id, 'all_fold_nerr_at_ks_per_q.np']))
             pickle_save(target=mat_per_q_ndcg,
                         file=self.dir_run + '_'.join([self.model_id, 'all_fold_ndcg_at_ks_per_q.np']))
+            pickle_save(target=mat_per_q_ndcg0,
+                        file=self.dir_run + '_'.join([self.model_id, 'all_fold_ndcg0_at_ks_per_q.np']))
 
         return ndcg_cv_avg_scores
 

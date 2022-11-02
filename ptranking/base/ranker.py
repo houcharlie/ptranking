@@ -5,8 +5,9 @@ from enum import Enum, unique, auto
 
 import torch
 import torch.optim as optim
+import sys
 from torch.optim.lr_scheduler import StepLR
-
+from ptranking.ltr_adhoc.pretrain.augmentations import zeroes
 from ptranking.data.data_utils import LABEL_TYPE
 from ptranking.metric.adhoc.adhoc_metric import torch_ndcg_at_k, torch_ndcg_at_ks, torch_nerr_at_ks, torch_ap_at_ks,\
     torch_precision_at_ks, torch_nerr_at_k, torch_ap_at_k, torch_precision_at_k
@@ -211,16 +212,20 @@ class Evaluator():
         sum_nerr_at_ks = torch.zeros(len(ks))
         sum_ap_at_ks = torch.zeros(len(ks))
         sum_p_at_ks = torch.zeros(len(ks))
+        sum_ndcg0_at_ks = torch.zeros(len(ks))
 
-        if need_per_q: list_per_q_p, list_per_q_ap, list_per_q_nerr, list_per_q_ndcg = [], [], [], []
+        if need_per_q: list_per_q_p, list_per_q_ap, list_per_q_nerr, list_per_q_ndcg, list_per_q_ndcg0 = [], [], [], []
 
         for batch_ids, batch_q_doc_vectors, batch_std_labels in test_data:  # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
             if self.gpu: batch_q_doc_vectors = batch_q_doc_vectors.to(self.device)
             batch_preds = self.predict(batch_q_doc_vectors)
-            if self.gpu: batch_preds = batch_preds.cpu()
+            batch_preds_0 = self.predict(zeroes(batch_q_doc_vectors, 0.2))
+            if self.gpu: batch_preds = batch_preds.cpu(); batch_preds_0 = batch_preds_0.cpu()
 
             _, batch_pred_desc_inds = torch.sort(batch_preds, dim=1, descending=True)
+            _, batch_pred_desc_inds0 = torch.sort(batch_preds_0, dim=1, descending=True)
             batch_predict_rankings = torch.gather(batch_std_labels, dim=1, index=batch_pred_desc_inds)
+            batch_predict_rankings0 = torch.gather(batch_std_labels, dim=1, index=batch_pred_desc_inds0)
             if presort:
                 batch_ideal_rankings = batch_std_labels
             else:
@@ -231,6 +236,10 @@ class Evaluator():
                                                 ks=ks, label_type=label_type, device=device)
             sum_ndcg_at_ks = torch.add(sum_ndcg_at_ks, torch.sum(batch_ndcg_at_ks, dim=0))
 
+            batch_ndcg0_at_ks = torch_ndcg_at_ks(batch_predict_rankings=batch_predict_rankings0,
+                                                batch_ideal_rankings=batch_ideal_rankings,
+                                                ks=ks, label_type=label_type, device=device)
+            sum_ndcg0_at_ks = torch.add(sum_ndcg0_at_ks, torch.sum(batch_ndcg0_at_ks, dim=0))
             batch_nerr_at_ks = torch_nerr_at_ks(batch_predict_rankings=batch_predict_rankings,
                                                 batch_ideal_rankings=batch_ideal_rankings, max_label=max_label,
                                                 ks=ks, label_type=label_type, device=device)
@@ -248,6 +257,7 @@ class Evaluator():
                 list_per_q_ap.append(batch_ap_at_ks)
                 list_per_q_nerr.append(batch_nerr_at_ks)
                 list_per_q_ndcg.append(batch_ndcg_at_ks)
+                list_per_q_ndcg0.append(batch_ndcg0_at_ks)
 
             num_queries += len(batch_ids)
 
@@ -255,12 +265,13 @@ class Evaluator():
         avg_nerr_at_ks = sum_nerr_at_ks / num_queries
         avg_ap_at_ks = sum_ap_at_ks / num_queries
         avg_p_at_ks = sum_p_at_ks / num_queries
+        avg_ndcg0_at_ks = sum_ndcg0_at_ks / num_queries
 
         if need_per_q:
-            return avg_ndcg_at_ks, avg_nerr_at_ks, avg_ap_at_ks, avg_p_at_ks,\
-                   list_per_q_ndcg, list_per_q_nerr, list_per_q_ap, list_per_q_p
+            return avg_ndcg_at_ks, avg_nerr_at_ks, avg_ap_at_ks, avg_p_at_ks, avg_ndcg_at_ks, \
+                   list_per_q_ndcg, list_per_q_nerr, list_per_q_ap, list_per_q_p, list_per_q_ndcg0
         else:
-            return avg_ndcg_at_ks, avg_nerr_at_ks, avg_ap_at_ks, avg_p_at_ks
+            return avg_ndcg_at_ks, avg_nerr_at_ks, avg_ap_at_ks, avg_p_at_ks, avg_ndcg0_at_ks
 
 
 
@@ -584,9 +595,12 @@ class NeuralRanker(Evaluator):
             else:
                 epoch_loss += batch_loss.item()
             batches_processed += 1
-            if batches_processed % 10 == 0:
-                print("Loss at batch {0}: {1}".format(batches_processed, batch_loss))
-
+            # if batches_processed % 100 == 0:
+            #     print("Loss at batch {0}: {1}".format(batches_processed, batch_loss), file=sys.stderr)
+            # HACKY WAY TO STOP TRAINING AFTER 10%
+            print(batch_loss.item(), file=sys.stderr)
+            if batches_processed > 0:
+                break
         epoch_loss = epoch_loss/num_queries
         return epoch_loss, stop_training
 

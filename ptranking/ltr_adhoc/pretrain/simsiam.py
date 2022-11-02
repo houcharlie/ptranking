@@ -5,6 +5,7 @@ Row-wise simsiam pretraining
 import torch
 import torch.nn as nn
 import os
+from itertools import product
 from ptranking.base.utils import get_stacked_FFNet
 from ptranking.base.ranker import NeuralRanker
 from ptranking.ltr_adhoc.pretrain.augmentations import zeroes
@@ -27,11 +28,11 @@ class SimSiam(NeuralRanker):
     def __init__(self, id='SimSiamPretrainer', sf_para_dict=None, model_para_dict=None, weight_decay=1e-3, gpu=False, device=None):
         super(SimSiam, self).__init__(id=id, sf_para_dict=sf_para_dict, weight_decay=weight_decay, gpu=gpu, device=device)
         self.aug_percent = model_para_dict['aug_percent']
+        self.dim = model_para_dict['dim']
 
     def init(self):
         self.point_sf = self.config_point_neural_scoring_function()
-        self.projector = self.config_projector()
-        self.predictor = self.config_predictor()
+        self.projector, self.predictor = self.config_heads()
         self.mseloss = torch.nn.MSELoss().to(self.device)
         self.config_optimizer()
 
@@ -40,10 +41,9 @@ class SimSiam(NeuralRanker):
         if self.gpu: point_sf = point_sf.to(self.device)
         return point_sf
 
-    def config_projector(self):
-        import ipdb; ipdb.set_trace()
-        dim = self.sf_para_dict[self.sf_para_dict['sf_id']]['out_dim']
-        prev_dim = self.sf_para_dict[self.sf_para_dict['sf_id']]['out_dim']
+    def config_heads(self):
+        dim = self.dim
+        prev_dim = self.point_sf.ff_4.weight.shape[1]
         projector = nn.Sequential(nn.Linear(prev_dim, prev_dim, bias=False),
                                   nn.BatchNorm1d(prev_dim),
                                   nn.ReLU(inplace=True), # first layer
@@ -53,17 +53,16 @@ class SimSiam(NeuralRanker):
                                   nn.Linear(prev_dim, dim, bias=False),
                                   nn.BatchNorm1d(dim, affine=False))
         if self.gpu: projector = projector.to(self.device)
-        return projector
-    
-    def config_predictor(self):
-        dim = self.sf_para_dict[self.sf_para_dict['sf_id']]['out_dim']
-        pred_dim = dim / 4
+
+        pred_dim = int(dim / 4)
+        
         predictor = nn.Sequential(nn.Linear(dim, pred_dim, bias=False),
                                     nn.BatchNorm1d(pred_dim),
                                     nn.ReLU(inplace=True), # hidden layer
                                     nn.Linear(pred_dim, dim)) # output layer
         if self.gpu: predictor = predictor.to(self.device)
-        return predictor
+
+        return projector, predictor
 
     def get_parameters(self):
         all_params = []
@@ -81,7 +80,7 @@ class SimSiam(NeuralRanker):
         '''
         Initialization of a feed-forward neural network
         '''
-        encoder_layers = num_layers - 1
+        encoder_layers = num_layers
         out_dim = h_dim
         ff_dims = [num_features]
         for i in range(encoder_layers):
@@ -102,13 +101,11 @@ class SimSiam(NeuralRanker):
         x_flat = batch_q_doc_vectors.reshape((-1, data_dim))
         x1 = zeroes(x_flat, self.aug_percent)
         x2 = zeroes(x_flat, self.aug_percent)
-
         z1 = self.projector(self.point_sf(x1))
         z2 = self.projector(self.point_sf(x2))
 
         p1 = self.predictor(z1)
         p2 = self.predictor(z2)
-
         return p1, p2, z1.detach(), z2.detach()
 
     def eval_mode(self):
@@ -145,7 +142,6 @@ class SimSiam(NeuralRanker):
 
         loss = 0.5 * (self.mseloss(p1_unit, z1_unit) + self.mseloss(p2_unit, z2_unit))
 
-
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -160,15 +156,16 @@ class SimSiam(NeuralRanker):
         @param kwargs: optional arguments
         @return:
         '''
+        stop_training = False
         batch_preds = self.forward(batch_q_doc_vectors)
 
-        return self.custom_loss_function(batch_preds, batch_std_labels, **kwargs), False
+        return self.custom_loss_function(batch_preds, batch_std_labels, **kwargs), stop_training
     
     def validation(self, vali_data=None, vali_metric=None, k=5, presort=False, max_label=None, label_type=LABEL_TYPE.MultiLabel, device='cpu'):
         self.eval_mode() # switch evaluation mode
 
         num_queries = 0
-        sum_val_loss = torch.zeros(1)
+        sum_val_loss = torch.zeros(1).to(self.device)
         for batch_ids, batch_q_doc_vectors, batch_std_labels in vali_data:  # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
             if batch_std_labels.size(1) < k:
                 continue  # skip if the number of documents is smaller than k
@@ -177,12 +174,25 @@ class SimSiam(NeuralRanker):
 
             if self.gpu: batch_q_doc_vectors = batch_q_doc_vectors.to(self.device)
             batch_preds = self.predict(batch_q_doc_vectors)
-            val_loss = self.custom_loss_function(batch_preds)
+            val_loss = self.custom_loss_function(batch_preds, batch_std_labels)
 
             sum_val_loss += val_loss # due to batch processing
 
         avg_val_loss = val_loss / num_queries
-        return avg_val_loss
+        return avg_val_loss.cpu()
+
+    def adhoc_performance_at_ks(self, test_data=None, ks=[1, 5, 10], label_type=LABEL_TYPE.MultiLabel, max_label=None,
+                                presort=False, device='cpu', need_per_q=False):
+        '''
+        Compute the performance using multiple metrics
+        '''
+        self.eval_mode()  # switch evaluation mode
+
+        val_loss = self.validation(test_data)
+        output = torch.zeros(len(ks))
+        output[0] = val_loss
+        output[1] = val_loss
+        return output, output, output, output, output
 
 ###### Parameter of LambdaRank ######
 
@@ -197,7 +207,7 @@ class SimSiamParameter(ModelParameter):
         Default parameter setting for SimSiam
         :return:
         """
-        self.simsiam_para_dict = dict(model_id=self.model_id, aug_percent=0.7)
+        self.simsiam_para_dict = dict(model_id=self.model_id, aug_percent=0.7, dim=100)
         return self.simsiam_para_dict
 
     def to_para_string(self, log=False, given_para_dict=None):
@@ -211,7 +221,7 @@ class SimSiamParameter(ModelParameter):
         simsiam_para_dict = given_para_dict if given_para_dict is not None else self.simsiam_para_dict
 
         s1, s2 = (':', '\n') if log else ('_', '_')
-        simsiam_para_str = s1.join(['aug_percent', '{:,g}'.format(simsiam_para_dict['aug_percent'])])
+        simsiam_para_str = s1.join(['aug_percent', '{:,g}'.format(simsiam_para_dict['aug_percent']), 'embed_dim', '{:,g}'.format(simsiam_para_dict['dim'])])
         return simsiam_para_str
 
     def grid_search(self):
@@ -220,9 +230,11 @@ class SimSiamParameter(ModelParameter):
         """
         if self.use_json:
             choice_aug = self.json_dict['aug_percent']
+            choice_dim = self.json_dict['dim']
         else:
             choice_aug = [0.3, 0.7] if self.debug else [0.7]  # 1.0, 10.0, 50.0, 100.0
+            choice_dim = [50, 100] if self.debug else [100]  # 1.0, 10.0, 50.0, 100.0
 
-        for aug_percent in choice_aug:
-            self.simsiam_para_dict = dict(model_id=self.model_id, aug_percent=aug_percent)
+        for aug_percent, dim in product(choice_aug, choice_dim):
+            self.simsiam_para_dict = dict(model_id=self.model_id, aug_percent=aug_percent, dim=dim)
             yield self.simsiam_para_dict

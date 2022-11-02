@@ -11,6 +11,7 @@ import datetime
 import numpy as np
 
 import torch
+import tensorflow as tf
 
 from ptranking.base.ranker import LTRFRAME_TYPE
 from ptranking.metric.metric_utils import metric_results_to_string
@@ -29,11 +30,12 @@ from ptranking.ltr_adhoc.listwise.wassrank.wassRank import WassRank, WassRankPar
 from ptranking.ltr_adhoc.listwise.st_listnet import STListNet, STListNetParameter
 from ptranking.ltr_adhoc.listwise.lambdaloss import LambdaLoss, LambdaLossParameter
 from ptranking.ltr_adhoc.pretrain.simsiam import SimSiam, SimSiamParameter
+from ptranking.ltr_adhoc.listwise.lambdaranktune import LambdaRankTune, LambdaRankTuneParameter
 
 LTR_ADHOC_MODEL = ['RankMSE',
                    'RankNet',
                    'RankCosine', 'ListNet', 'ListMLE', 'STListNet', 'ApproxNDCG', 'WassRank', 'LambdaRank', 'SoftRank',
-                   'LambdaLoss', 'TwinRank', 'SimSiam']
+                   'LambdaLoss', 'TwinRank', 'SimSiam', 'LambdaRankTune']
 
 class LTREvaluator():
     """
@@ -143,12 +145,12 @@ class LTREvaluator():
 
         _test_data = LTRDataset(file=file_test, split_type=SPLIT_TYPE.Test, data_dict=data_dict, presort=data_dict['test_presort'])
         test_letor_sampler = LETORSampler(data_source=_test_data, rough_batch_size=data_dict['test_rough_batch_size'])
-        test_loader = torch.utils.data.DataLoader(_test_data, batch_sampler=test_letor_sampler, num_workers=0)
+        test_loader = torch.utils.data.DataLoader(_test_data, batch_sampler=test_letor_sampler, num_workers=16)
 
         if eval_dict['do_validation'] or eval_dict['do_summary']: # vali_data is required
             _vali_data = LTRDataset(file=file_vali, split_type=SPLIT_TYPE.Validation, data_dict=data_dict, presort=data_dict['validation_presort'])
             vali_letor_sampler = LETORSampler(data_source=_vali_data, rough_batch_size=data_dict['validation_rough_batch_size'])
-            vali_loader = torch.utils.data.DataLoader(_vali_data, batch_sampler=vali_letor_sampler, num_workers=0)
+            vali_loader = torch.utils.data.DataLoader(_vali_data, batch_sampler=vali_letor_sampler, num_workers=16)
         else:
             vali_loader = None
 
@@ -168,7 +170,7 @@ class LTREvaluator():
             ranker = globals()[model_id](sf_para_dict=sf_para_dict, gpu=self.gpu, device=self.device)
 
         elif model_id in ['RankNet', 'LambdaRank', 'STListNet', 'ApproxNDCG', 'DirectOpt', 'LambdaLoss', 'MarginLambdaLoss',
-                          'MDPRank', 'ExpectedUtility', 'MDNExpectedUtility', 'RankingMDN', 'SoftRank', 'TwinRank', 'SimSiam']:
+                          'MDPRank', 'ExpectedUtility', 'MDNExpectedUtility', 'RankingMDN', 'SoftRank', 'TwinRank', 'SimSiam', 'LambdaRankTune']:
             ranker = globals()[model_id](sf_para_dict=sf_para_dict, model_para_dict=model_para_dict, gpu=self.gpu, device=self.device)
 
         elif model_id == 'WassRank':
@@ -302,9 +304,15 @@ class LTREvaluator():
         self.check_consistency(data_dict, eval_dict, sf_para_dict)
 
         ranker = self.load_ranker(model_para_dict=model_para_dict, sf_para_dict=sf_para_dict)
+        print('Loading ranker', file=sys.stderr)
         ranker.uniform_eval_setting(eval_dict=eval_dict)
 
         self.setup_eval(data_dict, eval_dict, sf_para_dict, model_para_dict)
+
+        current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        log_dir = self.dir_run + current_time
+        summary_writer = tf.summary.create_file_writer(log_dir)
+        print('Tensorboard dir: ' + log_dir, file=sys.stderr) 
 
         model_id = model_para_dict['model_id']
         fold_num, label_type, max_label = data_dict['fold_num'], data_dict['label_type'], data_dict['max_rele_level']
@@ -316,11 +324,10 @@ class LTREvaluator():
         do_vali, vali_metric, do_summary = eval_dict['do_validation'], eval_dict['vali_metric'], eval_dict['do_summary']
 
         cv_tape = CVTape(model_id=model_id, fold_num=fold_num, cutoffs=cutoffs, do_validation=do_vali)
-        for fold_k in range(1, fold_num + 1):   # evaluation over k-fold data
+        for fold_k in range(1, 2):   # evaluation over k-fold data
             ranker.init()           # initialize or reset with the same random initialization
-
+            print('Initialized the model, loading data', file=sys.stderr)
             train_data, test_data, vali_data = self.load_data(eval_dict, data_dict, fold_k)
-
             if do_vali:
                 vali_tape = ValidationTape(fold_k=fold_k, num_epochs=epochs, validation_metric=vali_metric,
                                            validation_at_k=vali_k, dir_run=self.dir_run)
@@ -329,13 +336,15 @@ class LTREvaluator():
                                            train_presort=train_presort, test_presort=test_presort, gpu=self.gpu)
             if not do_vali and loss_guided:
                 opt_loss_tape = OptLossTape(gpu=self.gpu)
-
+            print('Starting training', file=sys.stderr)
             for epoch_k in range(1, epochs + 1):
                 torch_fold_k_epoch_k_loss, stop_training = ranker.train(train_data=train_data, epoch_k=epoch_k,
                                                                         presort=train_presort, label_type=label_type)
-                print(f'Fold {0}   Epoch {1}   Loss {2}'.format(fold_k, epoch_k, torch_fold_k_epoch_k_loss))                                                        
+                train_loss_metric_val = torch_fold_k_epoch_k_loss.squeeze(-1).data.cpu().numpy()
+                print('Fold {0}   Epoch {1}   Loss {2}'.format(fold_k, epoch_k, torch_fold_k_epoch_k_loss), file=sys.stderr)                                                        
                 ranker.scheduler.step()  # adaptive learning rate with step_size=40, gamma=0.5
-
+                with summary_writer.as_default():
+                    tf.summary.scalar('train_loss', train_loss_metric_val, step=epoch_k)
                 if stop_training:
                     print('training is failed !')
                     break
@@ -344,8 +353,11 @@ class LTREvaluator():
                         torch_vali_metric_value = ranker.validation(vali_data=vali_data, k=vali_k, device='cpu',
                                                                     vali_metric=vali_metric, label_type=label_type,
                                                                     max_label=max_label, presort=validation_presort)
+                        
                         vali_metric_value = torch_vali_metric_value.squeeze(-1).data.numpy()
                         print(f'Validation metric {0}'.format(vali_metric_value)) 
+                        with summary_writer.as_default():
+                            tf.summary.scalar('val_loss', vali_metric_value, step=epoch_k)
                         vali_tape.epoch_validation(ranker=ranker, epoch_k=epoch_k, metric_value=vali_metric_value)
                     if do_summary:  # summarize per-step performance w.r.t. train, test
                         summary_tape.epoch_summary(ranker=ranker, torch_epoch_k_loss=torch_fold_k_epoch_k_loss,
@@ -356,15 +368,19 @@ class LTREvaluator():
                                                                   torch_epoch_k_loss=torch_fold_k_epoch_k_loss)
                     if early_stopping: break
 
+                fold_optimal_checkpoint = '-'.join(['Fold', str(fold_k)])
+                if epoch_k % log_step == 0 or epoch_k == 1:
+                    ranker.save(dir=self.dir_run + fold_optimal_checkpoint + '/', name='_'.join(['net_params_epoch', str(epoch_k)]) + '.pkl')
+
             if do_summary:  # track
                 summary_tape.fold_summary(fold_k=fold_k, dir_run=self.dir_run, train_data_length=train_data.__len__())
 
             if do_vali: # using the fold-wise optimal model for later testing based on validation data
                 ranker.load(vali_tape.get_optimal_path(), device=self.device)
                 vali_tape.clear_fold_buffer(fold_k=fold_k)
-            else:            # buffer the model after a fixed number of training-epoches if no validation is deployed
-                fold_optimal_checkpoint = '-'.join(['Fold', str(fold_k)])
-                ranker.save(dir=self.dir_run + fold_optimal_checkpoint + '/', name='_'.join(['net_params_epoch', str(epoch_k)]) + '.pkl')
+            # else:            # buffer the model after a fixed number of training-epoches if no validation is deployed
+            #     fold_optimal_checkpoint = '-'.join(['Fold', str(fold_k)])
+            #     ranker.save(dir=self.dir_run + fold_optimal_checkpoint + '/', name='_'.join(['net_params_epoch', str(epoch_k)]) + '.pkl')
 
             cv_tape.fold_evaluation(model_id=model_id, ranker=ranker, test_data=test_data, max_label=max_label, fold_k=fold_k)
 
@@ -558,7 +574,7 @@ class LTREvaluator():
                 for sf_para_dict in self.iterate_scoring_function_setting():
                     for model_para_dict in self.iterate_model_setting():
                         curr_cv_avg_scores = self.kfold_cv_eval(data_dict=data_dict, eval_dict=eval_dict, sf_para_dict=sf_para_dict, model_para_dict=model_para_dict)
-                        if curr_cv_avg_scores[k_index] > max_cv_avg_scores[k_index]:
+                        if curr_cv_avg_scores[k_index] >= max_cv_avg_scores[k_index]:
                             max_cv_avg_scores, max_sf_para_dict, max_eval_dict, max_model_para_dict = \
                                                            curr_cv_avg_scores, sf_para_dict, eval_dict, model_para_dict
 

@@ -10,6 +10,7 @@ import random
 import numpy as np
 from pathlib import Path
 from enum import Enum, unique, auto
+from random import shuffle
 
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
@@ -738,6 +739,8 @@ class LETORSampler(data.Sampler):
         self.list_batch_inds = pre_allocate_batch(dict_univ_bin=dict_univ_bin, num_docs_per_batch=rough_batch_size)
 
     def __iter__(self):
+        # if self.list_batch_inds is not None:
+        #     shuffle(self.list_batch_inds)
         for batch_inds in self.list_batch_inds:
             yield batch_inds
 

@@ -8,6 +8,8 @@ Learning to Rank with Nonsmooth Cost Functions. In Proceedings of NIPS conferenc
 
 import torch
 import torch.nn.functional as F
+import os
+import sys
 
 from ptranking.data.data_utils import LABEL_TYPE
 from ptranking.base.utils import get_stacked_FFNet
@@ -15,20 +17,40 @@ from ptranking.metric.metric_utils import get_delta_ndcg
 from ptranking.base.adhoc_ranker import AdhocNeuralRanker
 from ptranking.ltr_adhoc.eval.parameter import ModelParameter
 from ptranking.ltr_adhoc.util.lambda_utils import get_pairwise_comp_probs
-from torch import nn 
+from torch import nn
 
-class LambdaRank(AdhocNeuralRanker):
+zeros_default_file = ('/scratch/charlieh/ptranking-results/'
+                    'gpu_grid_SimSiam/SimSiam_SF_GE5GE_BN_Affine_Adam'
+                    '_1e-06_MSLRWEB30K_MiD_10_MiR_1_TrBat_100_TrPresort'
+                    '_EP_10_V_nDCG@5_QS_StandardScaler/aug_percent_0.7_embed_dim_100')
+
+class LambdaRankTune(AdhocNeuralRanker):
     '''
     Christopher J.C. Burges, Robert Ragno, and Quoc Viet Le. 2006.
     Learning to Rank with Nonsmooth Cost Functions. In Proceedings of NIPS conference. 193–200.
     '''
     def __init__(self, sf_para_dict=None, model_para_dict=None, gpu=False, device=None):
-        super(LambdaRank, self).__init__(id='LambdaRank', sf_para_dict=sf_para_dict, gpu=gpu, device=device)
+        super(LambdaRankTune, self).__init__(id='LambdaRankTune', sf_para_dict=sf_para_dict, gpu=gpu, device=device)
         self.sigma = model_para_dict['sigma']
+        self.model_load_ckpt = model_para_dict['model_path']
+        self.fold_num = 1
+    
     def init(self):
         self.point_sf = self.config_point_neural_scoring_function()
         nr_hn = nn.Linear(100, 1)
         self.point_sf.add_module('_'.join(['ff', 'scoring']), nr_hn)
+        checkpoint_dir = os.path.join(self.model_load_ckpt, 'Fold-{0}'.format(self.fold_num))
+        checkpoint_file_name = os.path.join(checkpoint_dir, 'net_params_epoch_100.pkl')
+        pretrained_dict = torch.load(checkpoint_file_name, map_location=self.device)
+        model_dict = self.point_sf.state_dict()
+        model_dict.update(pretrained_dict)
+        self.point_sf.load_state_dict(model_dict)
+        
+        self.fold_num += 1
+        for name, p in self.point_sf.named_parameters():
+            if "ff_scoring" not in name:
+                p.requires_grad = False
+            print(name, p, p.requires_grad, file=sys.stderr)
         self.point_sf.to(self.device)
         self.config_optimizer()
     
@@ -52,6 +74,8 @@ class LambdaRank(AdhocNeuralRanker):
         point_sf = get_stacked_FFNet(ff_dims=ff_dims, AF=AF, TL_AF=TL_AF, apply_tl_af=apply_tl_af, dropout=dropout,
                                      BN=BN, bn_type=bn_type, bn_affine=bn_affine, device=self.device)
         return point_sf
+
+
     def custom_loss_function(self, batch_preds, batch_std_labels, **kwargs):
         '''
         @param batch_preds: [batch, ranking_size] each row represents the relevance predictions for documents associated with the same query
@@ -92,10 +116,10 @@ class LambdaRank(AdhocNeuralRanker):
 
 ###### Parameter of LambdaRank ######
 
-class LambdaRankParameter(ModelParameter):
+class LambdaRankTuneParameter(ModelParameter):
     ''' Parameter class for LambdaRank '''
     def __init__(self, debug=False, para_json=None):
-        super(LambdaRankParameter, self).__init__(model_id='LambdaRank', para_json=para_json)
+        super(LambdaRankTuneParameter, self).__init__(model_id='LambdaRankTune', para_json=para_json)
         self.debug = debug
 
     def default_para_dict(self):
@@ -103,7 +127,7 @@ class LambdaRankParameter(ModelParameter):
         Default parameter setting for LambdaRank
         :return:
         """
-        self.lambda_para_dict = dict(model_id=self.model_id, sigma=1.0)
+        self.lambda_para_dict = dict(model_id=self.model_id, sigma=1.0, model_path=zeros_default_file)
         return self.lambda_para_dict
 
     def to_para_string(self, log=False, given_para_dict=None):
@@ -115,9 +139,9 @@ class LambdaRankParameter(ModelParameter):
         """
         # using specified para-dict or inner para-dict
         lambda_para_dict = given_para_dict if given_para_dict is not None else self.lambda_para_dict
-
+        pretrain_set = lambda_para_dict['model_path'].split('/')[-1]
         s1, s2 = (':', '\n') if log else ('_', '_')
-        lambdarank_para_str = s1.join(['Sigma', '{:,g}'.format(lambda_para_dict['sigma'])])
+        lambdarank_para_str = s1.join(['Sigma', '{:,g}'.format(lambda_para_dict['sigma']), 'pretrain_set', pretrain_set])
         return lambdarank_para_str
 
     def grid_search(self):
@@ -126,9 +150,11 @@ class LambdaRankParameter(ModelParameter):
         """
         if self.use_json:
             choice_sigma = self.json_dict['sigma']
+            choice_pretrains = self.json_dict['model_path']
         else:
             choice_sigma = [5.0, 1.0] if self.debug else [1.0]  # 1.0, 10.0, 50.0, 100.0
 
         for sigma in choice_sigma:
-            self.lambda_para_dict = dict(model_id=self.model_id, sigma=sigma)
-            yield self.lambda_para_dict
+            for pretrain in choice_pretrains:
+                self.lambda_para_dict = dict(model_id=self.model_id, sigma=sigma, model_path=pretrain)
+                yield self.lambda_para_dict
