@@ -1,3 +1,24 @@
+# Instructions on running for self-supervision
+
+The SimSiam code is in ptranking/ptranking/ltr_adhoc/pretrain/
+The linear probing code is in ptranking/ptranking/ltr_adhoc/listwise/lambdaranktune.py
+
+To run SimSiam
+```
+python pt_ranking.py -cuda 0 -model SimSiam -dir_json /afs/ece.cmu.edu/usr/charlieh/ptranking/testing/ssl/json/
+```
+To run the linear probing
+```
+python pt_ranking.py -cuda 0 -model LambdaRankTune -dir_json /afs/ece.cmu.edu/usr/charlieh/ptranking/testing/ltr_adhoc/json/
+```
+To run the baseline
+```
+python pt_ranking.py -cuda 0 -model LambdaRank -dir_json /afs/ece.cmu.edu/usr/charlieh/ptranking/testing/ltr_adhoc/json/
+```
+
+The linear probing requires you to have a directory set up with a checkpoint to load which is specified in ptranking/testing/ltr_adhoc/json/LambdarankTuneParameter.json
+
+
 # What's New?
 
 - The recent representative methods (such as [MO4SRD](https://wildltr.github.io/ptranking/) and [DALETOR](https://dl.acm.org/doi/abs/10.1145/3442381.3449831)) for Search Result Diversification by directly optimizing the evaluation metric (e.g., alpha-nDCG) have been added. (02/22/2022)
