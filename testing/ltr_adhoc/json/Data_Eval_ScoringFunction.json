@@ -13,7 +13,7 @@
 
   "EvalSetting": {
     "dir_output":"/scratch/charlieh/ptranking-results/one-batch-train/",
-    "epochs":90,
+    "epochs":1000,
 
     "do_validation":true,
     "vali_metric": "nDCG",
@@ -22,8 +22,8 @@
 
     "loss_guided":false,
 
-    "do_log":true,
-    "log_step":90,
+    "do_log":false,
+    "log_step":1000,
     "do_summary":false,
 
     "mask":{
@@ -36,7 +36,7 @@
   "SFParameter": {
     "sf_id":"pointsf",
     "opt":["Adam"],
-    "lr":[0.001],
+    "lr":[0.00001],
     "pointsf":{
       "BN":[true],
       "bn_type":["BN"],

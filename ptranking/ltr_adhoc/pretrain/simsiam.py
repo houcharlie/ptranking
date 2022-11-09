@@ -8,7 +8,7 @@ import os
 from itertools import product
 from ptranking.base.utils import get_stacked_FFNet
 from ptranking.base.ranker import NeuralRanker
-from ptranking.ltr_adhoc.pretrain.augmentations import zeroes
+from ptranking.ltr_adhoc.pretrain.augmentations import zeroes, qgswap
 from ptranking.data.data_utils import LABEL_TYPE
 from ptranking.ltr_adhoc.eval.parameter import ModelParameter
 from absl import logging
@@ -29,11 +29,16 @@ class SimSiam(NeuralRanker):
         super(SimSiam, self).__init__(id=id, sf_para_dict=sf_para_dict, weight_decay=weight_decay, gpu=gpu, device=device)
         self.aug_percent = model_para_dict['aug_percent']
         self.dim = model_para_dict['dim']
+        self.aug_type = model_para_dict['aug_type']
+        if self.aug_type == 'zeroes':
+            self.augmentation = zeroes
+        elif self.aug_type == 'qg':
+            self.augmentation = qgswap
 
     def init(self):
         self.point_sf = self.config_point_neural_scoring_function()
         self.projector, self.predictor = self.config_heads()
-        self.mseloss = torch.nn.MSELoss().to(self.device)
+        self.loss = nn.CosineSimilarity(dim=1).to(self.device)
         self.config_optimizer()
 
     def config_point_neural_scoring_function(self):
@@ -46,9 +51,9 @@ class SimSiam(NeuralRanker):
         prev_dim = self.point_sf.ff_4.weight.shape[1]
         projector = nn.Sequential(nn.Linear(prev_dim, prev_dim, bias=False),
                                   nn.BatchNorm1d(prev_dim),
-                                  nn.ReLU(inplace=True), # first layer
+                                  nn.ReLU(), # first layer
                                   nn.Linear(prev_dim, prev_dim, bias=False),
-                                  nn.BatchNorm1d(prev_dim),
+                                  nn.BatchNorm1d(prev_dim, affine=False),
                                   nn.ReLU(inplace=True), # second layer
                                   nn.Linear(prev_dim, dim, bias=False),
                                   nn.BatchNorm1d(dim, affine=False))
@@ -97,12 +102,13 @@ class SimSiam(NeuralRanker):
         @param batch_q_doc_vectors: [batch_size, num_docs, num_features], the latter two dimensions {num_docs, num_features} denote feature vectors associated with the same query.
         @return:
         '''
+        x1 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device)
+        x2 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device)
         data_dim = batch_q_doc_vectors.shape[2]
-        x_flat = batch_q_doc_vectors.reshape((-1, data_dim))
-        x1 = zeroes(x_flat, self.aug_percent)
-        x2 = zeroes(x_flat, self.aug_percent)
-        z1 = self.projector(self.point_sf(x1))
-        z2 = self.projector(self.point_sf(x2))
+        x1_flat = x1.reshape((-1, data_dim))
+        x2_flat = x2.reshape((-1, data_dim))
+        z1 = self.projector(self.point_sf(x1_flat))
+        z2 = self.projector(self.point_sf(x2_flat))
 
         p1 = self.predictor(z1)
         p2 = self.predictor(z2)
@@ -135,12 +141,9 @@ class SimSiam(NeuralRanker):
         @return:
         '''
         p1, p2, z1, z2 = batch_preds
-        p1_unit = p1/torch.linalg.norm(p1)
-        p2_unit = p2/torch.linalg.norm(p2)
-        z1_unit = z1/torch.linalg.norm(z1)
-        z2_unit = z2/torch.linalg.norm(z2)
 
-        loss = 0.5 * (self.mseloss(p1_unit, z1_unit) + self.mseloss(p2_unit, z2_unit))
+
+        loss = -(self.loss(p1, z1).mean() + self.loss(p2, z2).mean()) * 0.5
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -207,7 +210,7 @@ class SimSiamParameter(ModelParameter):
         Default parameter setting for SimSiam
         :return:
         """
-        self.simsiam_para_dict = dict(model_id=self.model_id, aug_percent=0.7, dim=100)
+        self.simsiam_para_dict = dict(model_id=self.model_id, aug_percent=0.7, dim=100, aug_type='qg')
         return self.simsiam_para_dict
 
     def to_para_string(self, log=False, given_para_dict=None):
@@ -221,7 +224,7 @@ class SimSiamParameter(ModelParameter):
         simsiam_para_dict = given_para_dict if given_para_dict is not None else self.simsiam_para_dict
 
         s1, s2 = (':', '\n') if log else ('_', '_')
-        simsiam_para_str = s1.join(['aug_percent', '{:,g}'.format(simsiam_para_dict['aug_percent']), 'embed_dim', '{:,g}'.format(simsiam_para_dict['dim'])])
+        simsiam_para_str = s1.join(['aug_percent', '{:,g}'.format(simsiam_para_dict['aug_percent']), 'embed_dim', '{:,g}'.format(simsiam_para_dict['dim']), 'aug_type', simsiam_para_dict['aug_type']])
         return simsiam_para_str
 
     def grid_search(self):
@@ -231,10 +234,12 @@ class SimSiamParameter(ModelParameter):
         if self.use_json:
             choice_aug = self.json_dict['aug_percent']
             choice_dim = self.json_dict['dim']
+            choice_augtype = self.json_dict['aug_type']
         else:
             choice_aug = [0.3, 0.7] if self.debug else [0.7]  # 1.0, 10.0, 50.0, 100.0
             choice_dim = [50, 100] if self.debug else [100]  # 1.0, 10.0, 50.0, 100.0
+            choice_augtype = ['zeroes', 'qg'] if self.debug else ['qg']  # 1.0, 10.0, 50.0, 100.0
 
-        for aug_percent, dim in product(choice_aug, choice_dim):
-            self.simsiam_para_dict = dict(model_id=self.model_id, aug_percent=aug_percent, dim=dim)
+        for aug_percent, dim, augtype in product(choice_aug, choice_dim, choice_augtype):
+            self.simsiam_para_dict = dict(model_id=self.model_id, aug_percent=aug_percent, dim=dim, aug_type=augtype)
             yield self.simsiam_para_dict

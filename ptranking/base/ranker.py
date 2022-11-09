@@ -595,12 +595,9 @@ class NeuralRanker(Evaluator):
             else:
                 epoch_loss += batch_loss.item()
             batches_processed += 1
-            # if batches_processed % 100 == 0:
-            #     print("Loss at batch {0}: {1}".format(batches_processed, batch_loss), file=sys.stderr)
-            # HACKY WAY TO STOP TRAINING AFTER 10%
-            print(batch_loss.item(), file=sys.stderr)
-            if batches_processed > 0:
-                break
+            if batches_processed % 100 == 0:
+                print("Loss at batch {0}: {1}".format(batches_processed, batch_loss), file=sys.stderr)
+
         epoch_loss = epoch_loss/num_queries
         return epoch_loss, stop_training
 

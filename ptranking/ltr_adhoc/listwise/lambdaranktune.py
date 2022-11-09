@@ -10,6 +10,7 @@ import torch
 import torch.nn.functional as F
 import os
 import sys
+import numpy as np
 
 from ptranking.data.data_utils import LABEL_TYPE
 from ptranking.base.utils import get_stacked_FFNet
@@ -34,23 +35,34 @@ class LambdaRankTune(AdhocNeuralRanker):
         self.sigma = model_para_dict['sigma']
         self.model_load_ckpt = model_para_dict['model_path']
         self.fold_num = 1
+        self.epochs = 0
     
     def init(self):
         self.point_sf = self.config_point_neural_scoring_function()
+        
         nr_hn = nn.Linear(100, 1)
         self.point_sf.add_module('_'.join(['ff', 'scoring']), nr_hn)
+        
+        # self.point_sf = nn.Linear(136,1)
+
         checkpoint_dir = os.path.join(self.model_load_ckpt, 'Fold-{0}'.format(self.fold_num))
         checkpoint_file_name = os.path.join(checkpoint_dir, 'net_params_epoch_100.pkl')
         pretrained_dict = torch.load(checkpoint_file_name, map_location=self.device)
         model_dict = self.point_sf.state_dict()
+        
         model_dict.update(pretrained_dict)
         self.point_sf.load_state_dict(model_dict)
+
+        self.encoder = self.config_point_neural_scoring_function()
+        # encoder_dict = self.encoder.state_dict()
+        # encoder_dict.update(pretrained_dict)
+        # self.encoder.load_state_dict(encoder_dict)
         
         self.fold_num += 1
         for name, p in self.point_sf.named_parameters():
             if "ff_scoring" not in name:
                 p.requires_grad = False
-            print(name, p, p.requires_grad, file=sys.stderr)
+            # print(name, p, p.requires_grad, file=sys.stderr)
         self.point_sf.to(self.device)
         self.config_optimizer()
     
@@ -113,7 +125,50 @@ class LambdaRankTune(AdhocNeuralRanker):
 
         return batch_loss
 
+    def train(self, train_data, epoch_k=None, **kwargs):
+        '''
+        One epoch training using the entire training data
+        '''
+        self.train_mode()
+        
+        
 
+        assert 'label_type' in kwargs and 'presort' in kwargs
+        label_type, presort = kwargs['label_type'], kwargs['presort']
+        num_queries = 0
+        epoch_loss = torch.tensor([0.0], device=self.device)
+        batches_processed = 0
+        for batch_ids, batch_q_doc_vectors, batch_std_labels in train_data: # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
+            num_queries += len(batch_ids)
+            batch_q_doc_vectors = torch.rand(size=batch_q_doc_vectors.shape) * 10.
+            # if self.epochs == 0:
+            #     embed_vecs = self.encoder(batch_q_doc_vectors)
+            #     embed_vecs = embed_vecs.detach().numpy()
+            #     embed_vecs = embed_vecs.squeeze()
+            #     print(list(np.linalg.svd(embed_vecs)[1]))
+            #     print(list(np.linalg.svd(batch_q_doc_vectors.squeeze())[1]))
+
+            #     import ipdb; ipdb.set_trace()
+            
+
+            if self.gpu: batch_q_doc_vectors, batch_std_labels = batch_q_doc_vectors.to(self.device), batch_std_labels.to(self.device)
+
+            batch_loss, stop_training = self.train_op(batch_q_doc_vectors, batch_std_labels, batch_ids=batch_ids, epoch_k=epoch_k, presort=presort, label_type=label_type)
+
+            if stop_training:
+                break
+            else:
+                epoch_loss += batch_loss.item()
+            batches_processed += 1
+            if batches_processed % 100 == 0:
+                print("Loss at batch {0}: {1}".format(batches_processed, batch_loss), file=sys.stderr)
+            # HACKY WAY TO STOP TRAINING AFTER 10%
+            # print(batch_loss.item(), file=sys.stderr)
+            if batches_processed > 0:
+                break
+        epoch_loss = epoch_loss/num_queries
+        self.epochs += 1
+        return epoch_loss, stop_training
 ###### Parameter of LambdaRank ######
 
 class LambdaRankTuneParameter(ModelParameter):

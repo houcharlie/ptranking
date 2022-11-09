@@ -348,29 +348,32 @@ class LTREvaluator():
                 if stop_training:
                     print('training is failed !')
                     break
-                if (do_summary or do_vali) and (epoch_k % log_step == 0 or epoch_k == 1):  # stepwise check
-                    if do_vali:     # per-step validation score
-                        torch_vali_metric_value = ranker.validation(vali_data=vali_data, k=vali_k, device='cpu',
-                                                                    vali_metric=vali_metric, label_type=label_type,
-                                                                    max_label=max_label, presort=validation_presort)
+                # if (do_summary or do_vali) and (epoch_k % log_step == 0 or epoch_k == 1):  # stepwise check
+                #     if do_vali:     # per-step validation score
+                #         torch_vali_metric_value = ranker.validation(vali_data=vali_data, k=vali_k, device='cpu',
+                #                                                     vali_metric=vali_metric, label_type=label_type,
+                #                                                     max_label=max_label, presort=validation_presort)
                         
-                        vali_metric_value = torch_vali_metric_value.squeeze(-1).data.numpy()
-                        print(f'Validation metric {0}'.format(vali_metric_value)) 
-                        with summary_writer.as_default():
-                            tf.summary.scalar('val_loss', vali_metric_value, step=epoch_k)
-                        vali_tape.epoch_validation(ranker=ranker, epoch_k=epoch_k, metric_value=vali_metric_value)
-                    if do_summary:  # summarize per-step performance w.r.t. train, test
-                        summary_tape.epoch_summary(ranker=ranker, torch_epoch_k_loss=torch_fold_k_epoch_k_loss,
-                                                   train_data=train_data, test_data=test_data,
-                                                   vali_metric_value=vali_metric_value if do_vali else None)
-                elif loss_guided:  # stopping check via epoch-loss
-                    early_stopping = opt_loss_tape.epoch_cmp_loss(fold_k=fold_k, epoch_k=epoch_k,
-                                                                  torch_epoch_k_loss=torch_fold_k_epoch_k_loss)
-                    if early_stopping: break
+                #         vali_metric_value = torch_vali_metric_value.squeeze(-1).data.numpy()
+                #         print(f'Validation metric {0}'.format(vali_metric_value)) 
+                #         with summary_writer.as_default():
+                #             tf.summary.scalar('val_loss', vali_metric_value, step=epoch_k)
+                #         vali_tape.epoch_validation(ranker=ranker, epoch_k=epoch_k, metric_value=vali_metric_value)
+                #     if do_summary:  # summarize per-step performance w.r.t. train, test
+                #         summary_tape.epoch_summary(ranker=ranker, torch_epoch_k_loss=torch_fold_k_epoch_k_loss,
+                #                                    train_data=train_data, test_data=test_data,
+                #                                    vali_metric_value=vali_metric_value if do_vali else None)
+                # elif loss_guided:  # stopping check via epoch-loss
+                #     early_stopping = opt_loss_tape.epoch_cmp_loss(fold_k=fold_k, epoch_k=epoch_k,
+                #                                                   torch_epoch_k_loss=torch_fold_k_epoch_k_loss)
+                #     if early_stopping: break
 
                 fold_optimal_checkpoint = '-'.join(['Fold', str(fold_k)])
                 if epoch_k % log_step == 0 or epoch_k == 1:
                     ranker.save(dir=self.dir_run + fold_optimal_checkpoint + '/', name='_'.join(['net_params_epoch', str(epoch_k)]) + '.pkl')
+
+            # for name, p in ranker.point_sf.named_parameters():
+            #     print(name, p, p.requires_grad, file=sys.stderr)
 
             if do_summary:  # track
                 summary_tape.fold_summary(fold_k=fold_k, dir_run=self.dir_run, train_data_length=train_data.__len__())
