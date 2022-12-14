@@ -8,12 +8,12 @@
 
     "binary_rele":[false],
     "unknown_as_zero":[false],
-    "tr_batch_size":[1]
+    "tr_batch_size":[100]
   },
 
   "EvalSetting": {
-    "dir_output":"/scratch/charlieh/ptranking-results/one-batch-train/",
-    "epochs":1000,
+    "dir_output":"/scratch/charlieh/ptranking-results/100-batch-train/",
+    "epochs":200,
 
     "do_validation":true,
     "vali_metric": "nDCG",
@@ -22,7 +22,7 @@
 
     "loss_guided":false,
 
-    "do_log":false,
+    "do_log":true,
     "log_step":1000,
     "do_summary":false,
 
@@ -36,7 +36,7 @@
   "SFParameter": {
     "sf_id":"pointsf",
     "opt":["Adam"],
-    "lr":[0.00001],
+    "lr":[0.001],
     "pointsf":{
       "BN":[true],
       "bn_type":["BN"],

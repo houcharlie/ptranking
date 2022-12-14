@@ -206,9 +206,9 @@ def torch_dcg_at_k(batch_rankings, cutoff=None, label_type=LABEL_TYPE.MultiLabel
 		cutoff = batch_rankings.size(1)
 
 	if LABEL_TYPE.MultiLabel == label_type:    #the common case with multi-level labels
-		batch_numerators = torch.pow(2.0, batch_rankings[:, 0:cutoff]) - 1.0
+		batch_numerators = torch.pow(2.0, batch_rankings[:, 0:cutoff]).to(device) - 1.0
 	elif LABEL_TYPE.Permutation == label_type: # the case like listwise ltr_adhoc, where the relevance is labeled as (n-rank_position)
-		batch_numerators = batch_rankings[:, 0:cutoff]
+		batch_numerators = batch_rankings[:, 0:cutoff].to(device)
 	else:
 		raise NotImplementedError
 	# no expanding should also be OK due to the default broadcasting

@@ -37,7 +37,7 @@ class Evaluator():
         self.eval_mode() # switch evaluation mode
 
         num_queries = 0
-        sum_ndcg_at_k = torch.zeros(1)
+        sum_ndcg_at_k = torch.zeros(1).to(device)
         for batch_ids, batch_q_doc_vectors, batch_std_labels in test_data:  # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
             if batch_std_labels.size(1) < k:
                 continue  # skip if the number of documents is smaller than k
@@ -73,7 +73,7 @@ class Evaluator():
         self.eval_mode() # switch evaluation mode
 
         num_queries = 0
-        sum_ndcg_at_ks = torch.zeros(len(ks))
+        sum_ndcg_at_ks = torch.zeros(len(ks)).to(device)
         for batch_ids, batch_q_doc_vectors, batch_std_labels in test_data:  # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
             if self.gpu: batch_q_doc_vectors = batch_q_doc_vectors.to(self.device)
             batch_preds = self.predict(batch_q_doc_vectors)
@@ -219,7 +219,7 @@ class Evaluator():
         for batch_ids, batch_q_doc_vectors, batch_std_labels in test_data:  # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
             if self.gpu: batch_q_doc_vectors = batch_q_doc_vectors.to(self.device)
             batch_preds = self.predict(batch_q_doc_vectors)
-            batch_preds_0 = self.predict(zeroes(batch_q_doc_vectors, 0.2))
+            batch_preds_0 = self.predict(zeroes(batch_q_doc_vectors, 0.2, 'anything'))
             if self.gpu: batch_preds = batch_preds.cpu(); batch_preds_0 = batch_preds_0.cpu()
 
             _, batch_pred_desc_inds = torch.sort(batch_preds, dim=1, descending=True)
@@ -530,6 +530,8 @@ class NeuralRanker(Evaluator):
             self.optimizer = optim.RMSprop(self.get_parameters(), lr=self.lr, weight_decay=self.weight_decay)
         elif 'Adagrad' == self.opt:
             self.optimizer = optim.Adagrad(self.get_parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        elif 'SGD' == self.opt:
+            self.optimizer = optim.SGD(self.get_parameters(), lr=self.lr, weight_decay=self.weight_decay)
         else:
             raise NotImplementedError
 
@@ -595,8 +597,6 @@ class NeuralRanker(Evaluator):
             else:
                 epoch_loss += batch_loss.item()
             batches_processed += 1
-            if batches_processed % 100 == 0:
-                print("Loss at batch {0}: {1}".format(batches_processed, batch_loss), file=sys.stderr)
 
         epoch_loss = epoch_loss/num_queries
         return epoch_loss, stop_training

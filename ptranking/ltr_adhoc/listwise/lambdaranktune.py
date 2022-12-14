@@ -12,6 +12,7 @@ import os
 import sys
 import numpy as np
 
+from torch.optim.lr_scheduler import StepLR
 from ptranking.data.data_utils import LABEL_TYPE
 from ptranking.base.utils import get_stacked_FFNet
 from ptranking.metric.metric_utils import get_delta_ndcg
@@ -31,53 +32,43 @@ class LambdaRankTune(AdhocNeuralRanker):
     Learning to Rank with Nonsmooth Cost Functions. In Proceedings of NIPS conference. 193–200.
     '''
     def __init__(self, sf_para_dict=None, model_para_dict=None, gpu=False, device=None):
-        super(LambdaRankTune, self).__init__(id='LambdaRankTune', sf_para_dict=sf_para_dict, gpu=gpu, device=device)
+        super(LambdaRankTune, self).__init__(id='LambdaRankTune', sf_para_dict=sf_para_dict, gpu=gpu, device=device, weight_decay=0.)
         self.sigma = model_para_dict['sigma']
         self.model_load_ckpt = model_para_dict['model_path']
-        self.fold_num = 1
+        self.linear_path = model_para_dict['linear_path']
         self.epochs = 0
+
+
     
     def init(self):
+        checkpoint_dir = self.model_load_ckpt
         self.point_sf = self.config_point_neural_scoring_function()
-        
-        nr_hn = nn.Linear(100, 1)
+        nr_hn = nn.Linear(136, 1)
         self.point_sf.add_module('_'.join(['ff', 'scoring']), nr_hn)
-        
-        # self.point_sf = nn.Linear(136,1)
-
-        checkpoint_dir = os.path.join(self.model_load_ckpt, 'Fold-{0}'.format(self.fold_num))
-        checkpoint_file_name = os.path.join(checkpoint_dir, 'net_params_epoch_100.pkl')
-        pretrained_dict = torch.load(checkpoint_file_name, map_location=self.device)
-        model_dict = self.point_sf.state_dict()
-        
-        model_dict.update(pretrained_dict)
-        self.point_sf.load_state_dict(model_dict)
-
-        self.encoder = self.config_point_neural_scoring_function()
-        # encoder_dict = self.encoder.state_dict()
-        # encoder_dict.update(pretrained_dict)
-        # self.encoder.load_state_dict(encoder_dict)
-        
-        self.fold_num += 1
-        for name, p in self.point_sf.named_parameters():
-            if "ff_scoring" not in name:
-                p.requires_grad = False
-            # print(name, p, p.requires_grad, file=sys.stderr)
         self.point_sf.to(self.device)
         self.config_optimizer()
-    
+        if len(checkpoint_dir) > 0:
+            print('Loading checkpoint...', file=sys.stderr)
+            checkpoint_file_name = os.path.join(checkpoint_dir, 'net_params.pkl')
+            pretrained_dict = torch.load(checkpoint_file_name, map_location=self.device)
+            pointsf_dict = self.point_sf.state_dict()
+            pointsf_dict.update(pretrained_dict)
+            self.point_sf.load_state_dict(pointsf_dict)
+        else:
+            print('No checkpoint', file=sys.stderr)
+        self.scheduler = StepLR(optimizer=self.optimizer, step_size=40, gamma=1.)
+
     def config_point_neural_scoring_function(self):
         point_sf = self.ini_pointsf(**self.sf_para_dict[self.sf_para_dict['sf_id']])
         if self.gpu: point_sf = point_sf.to(self.device)
         return point_sf
 
-    def ini_pointsf(self, num_features=None, h_dim=100, out_dim=1, num_layers=3, AF='R', TL_AF='S', apply_tl_af=False,
+    def ini_pointsf(self, num_features=None, h_dim=100, out_dim=136, num_layers=3, AF='R', TL_AF='S', apply_tl_af=False,
                     BN=True, bn_type=None, bn_affine=False, dropout=0.1):
         '''
         Initialization of a feed-forward neural network
         '''
         encoder_layers = num_layers
-        out_dim = h_dim
         ff_dims = [num_features]
         for i in range(encoder_layers):
             ff_dims.append(h_dim)
@@ -130,9 +121,16 @@ class LambdaRankTune(AdhocNeuralRanker):
         One epoch training using the entire training data
         '''
         self.train_mode()
-        
-        
-
+        if self.epochs < 100:
+            for name, param in self.point_sf.named_parameters():
+                if 'ff_scoring' not in name:
+                    param.requires_grad = False
+                else:
+                    param.requires_grad = True
+        else:
+            for name, param in self.point_sf.named_parameters():
+                param.requires_grad = True
+                
         assert 'label_type' in kwargs and 'presort' in kwargs
         label_type, presort = kwargs['label_type'], kwargs['presort']
         num_queries = 0
@@ -140,17 +138,6 @@ class LambdaRankTune(AdhocNeuralRanker):
         batches_processed = 0
         for batch_ids, batch_q_doc_vectors, batch_std_labels in train_data: # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
             num_queries += len(batch_ids)
-            batch_q_doc_vectors = torch.rand(size=batch_q_doc_vectors.shape) * 10.
-            # if self.epochs == 0:
-            #     embed_vecs = self.encoder(batch_q_doc_vectors)
-            #     embed_vecs = embed_vecs.detach().numpy()
-            #     embed_vecs = embed_vecs.squeeze()
-            #     print(list(np.linalg.svd(embed_vecs)[1]))
-            #     print(list(np.linalg.svd(batch_q_doc_vectors.squeeze())[1]))
-
-            #     import ipdb; ipdb.set_trace()
-            
-
             if self.gpu: batch_q_doc_vectors, batch_std_labels = batch_q_doc_vectors.to(self.device), batch_std_labels.to(self.device)
 
             batch_loss, stop_training = self.train_op(batch_q_doc_vectors, batch_std_labels, batch_ids=batch_ids, epoch_k=epoch_k, presort=presort, label_type=label_type)
@@ -160,15 +147,11 @@ class LambdaRankTune(AdhocNeuralRanker):
             else:
                 epoch_loss += batch_loss.item()
             batches_processed += 1
-            if batches_processed % 100 == 0:
-                print("Loss at batch {0}: {1}".format(batches_processed, batch_loss), file=sys.stderr)
-            # HACKY WAY TO STOP TRAINING AFTER 10%
-            # print(batch_loss.item(), file=sys.stderr)
-            if batches_processed > 0:
-                break
+
         epoch_loss = epoch_loss/num_queries
         self.epochs += 1
         return epoch_loss, stop_training
+
 ###### Parameter of LambdaRank ######
 
 class LambdaRankTuneParameter(ModelParameter):
@@ -182,7 +165,7 @@ class LambdaRankTuneParameter(ModelParameter):
         Default parameter setting for LambdaRank
         :return:
         """
-        self.lambda_para_dict = dict(model_id=self.model_id, sigma=1.0, model_path=zeros_default_file)
+        self.lambda_para_dict = dict(model_id=self.model_id, sigma=1.0, model_path=zeros_default_file, linear_path='')
         return self.lambda_para_dict
 
     def to_para_string(self, log=False, given_para_dict=None):
@@ -206,10 +189,10 @@ class LambdaRankTuneParameter(ModelParameter):
         if self.use_json:
             choice_sigma = self.json_dict['sigma']
             choice_pretrains = self.json_dict['model_path']
+            choice_linear = self.json_dict['linear_path']
         else:
             choice_sigma = [5.0, 1.0] if self.debug else [1.0]  # 1.0, 10.0, 50.0, 100.0
 
         for sigma in choice_sigma:
-            for pretrain in choice_pretrains:
-                self.lambda_para_dict = dict(model_id=self.model_id, sigma=sigma, model_path=pretrain)
-                yield self.lambda_para_dict
+            self.lambda_para_dict = dict(model_id=self.model_id, sigma=sigma, model_path=choice_pretrains[0], linear_path=choice_linear[0])
+            yield self.lambda_para_dict

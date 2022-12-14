@@ -5,6 +5,7 @@ Row-wise simsiam pretraining
 import torch
 import torch.nn as nn
 import os
+import sys
 from itertools import product
 from ptranking.base.utils import get_stacked_FFNet
 from ptranking.base.ranker import NeuralRanker
@@ -48,7 +49,7 @@ class SimSiam(NeuralRanker):
 
     def config_heads(self):
         dim = self.dim
-        prev_dim = self.point_sf.ff_4.weight.shape[1]
+        prev_dim = self.point_sf.ff_7.weight.shape[0]
         projector = nn.Sequential(nn.Linear(prev_dim, prev_dim, bias=False),
                                   nn.BatchNorm1d(prev_dim),
                                   nn.ReLU(), # first layer
@@ -59,7 +60,7 @@ class SimSiam(NeuralRanker):
                                   nn.BatchNorm1d(dim, affine=False))
         if self.gpu: projector = projector.to(self.device)
 
-        pred_dim = int(dim / 4)
+        pred_dim = int(dim // 4)
         
         predictor = nn.Sequential(nn.Linear(dim, pred_dim, bias=False),
                                     nn.BatchNorm1d(pred_dim),
@@ -80,13 +81,12 @@ class SimSiam(NeuralRanker):
         
         return all_params
 
-    def ini_pointsf(self, num_features=None, h_dim=100, out_dim=1, num_layers=3, AF='R', TL_AF='S', apply_tl_af=False,
+    def ini_pointsf(self, num_features=None, h_dim=100, out_dim=136, num_layers=3, AF='R', TL_AF='S', apply_tl_af=False,
                     BN=True, bn_type=None, bn_affine=False, dropout=0.1):
         '''
         Initialization of a feed-forward neural network
         '''
         encoder_layers = num_layers
-        out_dim = h_dim
         ff_dims = [num_features]
         for i in range(encoder_layers):
             ff_dims.append(h_dim)
@@ -141,14 +141,10 @@ class SimSiam(NeuralRanker):
         @return:
         '''
         p1, p2, z1, z2 = batch_preds
-
-
-        loss = -(self.loss(p1, z1).mean() + self.loss(p2, z2).mean()) * 0.5
-
+        loss = -(self.loss(p1, z2).mean() + self.loss(p2, z1).mean()) * 0.5
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-
         return loss
     
     def train_op(self, batch_q_doc_vectors, batch_std_labels, **kwargs):

@@ -8,6 +8,7 @@ Learning to Rank with Nonsmooth Cost Functions. In Proceedings of NIPS conferenc
 
 import torch
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import StepLR
 
 from ptranking.data.data_utils import LABEL_TYPE
 from ptranking.base.utils import get_stacked_FFNet
@@ -27,23 +28,24 @@ class LambdaRank(AdhocNeuralRanker):
         self.sigma = model_para_dict['sigma']
     def init(self):
         self.point_sf = self.config_point_neural_scoring_function()
-        nr_hn = nn.Linear(100, 1)
+        nr_hn = nn.Linear(136, 1)
         self.point_sf.add_module('_'.join(['ff', 'scoring']), nr_hn)
         self.point_sf.to(self.device)
         self.config_optimizer()
+        self.scheduler = StepLR(optimizer=self.optimizer, step_size=40, gamma=1.)
+
     
     def config_point_neural_scoring_function(self):
         point_sf = self.ini_pointsf(**self.sf_para_dict[self.sf_para_dict['sf_id']])
         if self.gpu: point_sf = point_sf.to(self.device)
         return point_sf
 
-    def ini_pointsf(self, num_features=None, h_dim=100, out_dim=1, num_layers=3, AF='R', TL_AF='S', apply_tl_af=False,
+    def ini_pointsf(self, num_features=None, h_dim=100, out_dim=136, num_layers=3, AF='R', TL_AF='S', apply_tl_af=False,
                     BN=True, bn_type=None, bn_affine=False, dropout=0.1):
         '''
         Initialization of a feed-forward neural network
         '''
         encoder_layers = num_layers
-        out_dim = h_dim
         ff_dims = [num_features]
         for i in range(encoder_layers):
             ff_dims.append(h_dim)
