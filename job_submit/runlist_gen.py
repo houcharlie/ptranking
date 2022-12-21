@@ -13,10 +13,11 @@ default_setting = {
     "dim": 16,
     "layers": 5,
     "temp": 0.07,
-    'pretrainer': 'SimRank'
+    'pretrainer': 'SimRank',
+    'mix': 0.5
 }
 def format_string(new_setting, trial, aug):
-    return '{0} {1} {2} {3} {4} {5} {6} {7} {8}\n'.format(new_setting['pretrain_lr'], new_setting['finetune_lr'], trial, aug, new_setting['aug_percent'], new_setting['dim'], new_setting['layers'], new_setting['temp'], new_setting['pretrainer'])
+    return '{0} {1} {2} {3} {4} {5} {6} {7} {8} {9}\n'.format(new_setting['pretrain_lr'], new_setting['finetune_lr'], trial, aug, new_setting['aug_percent'], new_setting['dim'], new_setting['layers'], new_setting['temp'], new_setting['pretrainer'], new_setting['mix'])
 with open('./runlist.txt', 'w+') as f:
     # explore lrs    
     for pretrain_lr, finetune_lr in [(1e-5, 1e-6), (5e-6, 5e-7)]:

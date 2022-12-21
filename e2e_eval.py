@@ -98,8 +98,11 @@ if __name__ == '__main__':
     ''' pretrainer '''
     parser.add_argument('-pretrainer', type=str, help='the type of pretrainer.')
 
-    ''' pretrainer '''
+    ''' temp '''
     parser.add_argument('-temperature', type=float, help='temperature of the softmax loss (if applicable).')
+
+    ''' mix '''
+    parser.add_argument('-mix', type=float, help='Mix between instance and set level simclr')
 
     argobj = parser.parse_args()
     evaluator = LTREvaluator(cuda=argobj.cuda)

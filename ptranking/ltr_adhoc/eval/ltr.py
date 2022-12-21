@@ -417,9 +417,9 @@ class LTREvaluator():
             elif argobj.pretrainer == 'SimRank':
                 eval_dict['dir_output'] = os.path.join(
                     eval_dict['dir_output'],
-                    'SimRank_{0}{1}_{2}_dim_{5}_layers_{6}_to_finetune_{3}_temp{7}_trial{4}/'.format(
+                    'SimRank_{0}{1}_{2}_dim_{5}_layers_{6}_to_finetune_{3}_temp{7}_mix{8}_trial{4}/'.format(
                         argobj.aug_type, argobj.aug_percent, argobj.pretrain_lr,
-                        argobj.finetune_lr, argobj.trial_num, argobj.dim, argobj.layers, argobj.temperature))
+                        argobj.finetune_lr, argobj.trial_num, argobj.dim, argobj.layers, argobj.temperature, argobj.mix))
             else:
                 raise ValueError('Should be one of SimSiam or SimRank')
         if not os.path.exists(eval_dict['dir_output']):
@@ -439,6 +439,7 @@ class LTREvaluator():
                 model_para_dict['aug_percent'] = argobj.aug_percent
                 model_para_dict['dim'] = argobj.dim 
                 model_para_dict['temp'] = argobj.temperature
+                model_para_dict['mix'] = argobj.mix
             else:
                 raise ValueError('Should be one of SimSiam or SimRank')
         else:
@@ -525,7 +526,7 @@ class LTREvaluator():
                     (batch_ids, batch_q_doc_vectors, batch_std_labels))
 
             print(model_id, file=sys.stderr)
-            if model_id != 'SimSiam':
+            if model_id != 'SimSiam' and model_id != 'SimRank':
                 print('Shrinking set', file=sys.stderr)
                 small_train_set = small_train_set[:len(small_train_set) // 10]
 
@@ -537,7 +538,8 @@ class LTREvaluator():
                         epoch_k=epoch_k,
                         presort=train_presort,
                         label_type=label_type)
-                if (model_id == 'SimSiam' and epoch_k % 50 == 0) or model_id != 'SimSiam':
+                print('epoch', epoch_k, 'train loss', torch_fold_k_epoch_k_loss)
+                if (model_id in ['SimSiam', 'SimRank'] and epoch_k % 50 == 0) or model_id not in ['SimSiam', 'SimRank']:
                     train_loss_metric_val = torch_fold_k_epoch_k_loss.squeeze(
                         -1).data.cpu().numpy()
                     torch_train_metric_value = ranker.validation(
@@ -566,7 +568,7 @@ class LTREvaluator():
                                         step=epoch_k)
                         tf.summary.scalar('val_ndcg', val_ndcg_print, step=epoch_k)
                     print(
-                        'Fold {0}   Epoch {1}   Loss {2}  Train NDCG {3} Val NDCG {4}'
+                        'Fold {0}   Epoch {1}   Loss {2}  Train {3} Val {4}'
                         .format(fold_k, epoch_k, torch_fold_k_epoch_k_loss,
                                 train_ndcg_print, val_ndcg_print),
                         file=sys.stderr)

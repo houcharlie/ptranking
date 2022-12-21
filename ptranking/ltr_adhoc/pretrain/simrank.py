@@ -83,37 +83,6 @@ class SimRank(NeuralRanker):
         point_sf = get_stacked_FFNet(ff_dims=ff_dims, AF=AF, TL_AF=TL_AF, apply_tl_af=apply_tl_af, dropout=dropout,
                                      BN=BN, bn_type=bn_type, bn_affine=bn_affine, device=self.device)
         return point_sf
-
-    def lambda_loss(self, features, batch_size):
-
-        labels = torch.cat([torch.arange(batch_size) for i in range(2)], dim=0)
-        labels = (labels.unsqueeze(0) == labels.unsqueeze(1)).float()
-        labels = labels.to(self.device)
-
-        features = F.normalize(features, dim=1)
-
-        similarity_matrix = torch.matmul(features, features.T)
-        # assert similarity_matrix.shape == (
-        #     self.args.n_views * self.args.batch_size, self.args.n_views * self.args.batch_size)
-        # assert similarity_matrix.shape == labels.shape
-
-        # discard the main diagonal from both: labels and similarities matrix
-        mask = torch.eye(labels.shape[0], dtype=torch.bool).to(self.device)
-        labels = labels[~mask].view(labels.shape[0], -1)
-        similarity_matrix = similarity_matrix[~mask].view(similarity_matrix.shape[0], -1)
-        # assert similarity_matrix.shape == labels.shape
-
-        # select and combine multiple positives
-        positives = similarity_matrix[labels.bool()].view(labels.shape[0], -1)
-
-        # select only the negatives the negatives
-        negatives = similarity_matrix[~labels.bool()].view(similarity_matrix.shape[0], -1)
-
-        logits = torch.cat([positives, negatives], dim=1)
-        labels = torch.zeros(logits.shape[0], dtype=torch.long).to(self.device)
-
-        logits = logits / self.temperature
-        return logits, labels
     
     def info_nce_loss(self, features, batch_size):
 
@@ -152,13 +121,23 @@ class SimRank(NeuralRanker):
         labels = (labels.unsqueeze(0) == labels.unsqueeze(1)).float()
         labels = labels.to(self.device)
 
-        features = F.normalize(features, dim=1)
-
-        similarity_matrix = torch.zeroes((features.shape[0], features.shape[0])).to(self.device)
+        side1 = []
+        side2 = []
+        for i in range(features.shape[0]):
+            for j in range(features.shape[0]):
+                side1.append(features[i,:][None,:])
+                side2.append(features[j,:][None,:])
+        
+        term1 = torch.concat(tuple(side1), dim=0).to(self.device)
+        term2 = torch.concat(tuple(side2), dim=0).to(self.device)
+        losses_list = self.lambdarank_loss(term1, term2.detach())
+        
+        similarity_matrix = torch.zeros((features.shape[0], features.shape[0])).to(self.device)
+        k = 0
         for i in range(similarity_matrix.shape[0]):
             for j in range(similarity_matrix.shape[1]):
-                similarity_matrix[i][j] = self.lambdarank_loss(features[i,:], features[j:])
-
+                similarity_matrix[i,j] = losses_list[k]
+                k += 1
         #similarity_matrix = torch.matmul(features, features.T)
         # assert similarity_matrix.shape == (
         #     self.args.n_views * self.args.batch_size, self.args.n_views * self.args.batch_size)
@@ -199,7 +178,7 @@ class SimRank(NeuralRanker):
 
         batch_p_ij, batch_std_p_ij = get_pairwise_comp_probs(batch_preds=batch_descending_preds,
                                                              batch_std_labels=batch_predict_rankings,
-                                                             sigma=self.sigma)
+                                                             sigma=1.)
 
         batch_delta_ndcg = get_delta_ndcg(batch_ideal_rankings=batch_std_labels,
                                           batch_predict_rankings=batch_predict_rankings,
@@ -209,7 +188,7 @@ class SimRank(NeuralRanker):
                                              target=torch.triu(batch_std_p_ij, diagonal=1),
                                              weight=torch.triu(batch_delta_ndcg, diagonal=1), reduction='none')
 
-        batch_loss = torch.sum(torch.sum(_batch_loss, dim=(2, 1)))
+        batch_loss = torch.sum(_batch_loss, dim=(2, 1))
         return batch_loss
 
     def forward(self, batch_q_doc_vectors):
@@ -234,12 +213,10 @@ class SimRank(NeuralRanker):
         _s2 = self.scorer(z2)
         s1 = _s1.view(-1, num_docs)  # [batch_size, num_docs]
         s2 = _s2.view(-1, num_docs)  # [batch_size, num_docs]
-        s_concat1 = torch.cat((s1, s2), dim=1).to(self.device)
-        s_concat2 = torch.cat((s2, s1), dim=1).to(self.device)
-        logits_qg1, labels_qg1 = self.info_nce_lambda_loss(s_concat1, batch_size)
-        logits_qg2, labels_qg2 = self.info_nce_lambda_loss(s_concat2, batch_size)
+        s_concat = torch.cat((s1, s2), dim=0).to(self.device)
+        logits_qg, labels_qg = self.info_nce_lambda_loss(s_concat, batch_size)
         
-        return logits_instance, labels_instance, logits_qg1, labels_qg1, logits_qg2, labels_qg2
+        return logits_instance, labels_instance, logits_qg, labels_qg
 
     def eval_mode(self):
         self.point_sf.eval()
@@ -271,8 +248,8 @@ class SimRank(NeuralRanker):
         @param kwargs:
         @return:
         '''
-        logits_instance, labels_instance, logits_qg1, labels_qg1, logits_qg2, labels_qg2  = batch_preds
-        loss = self.mix * self.loss(logits_instance, labels_instance) + (1. - self.mix) * (0.5 * self.loss(logits_qg1, labels_qg1) + 0.5 * self.loss(logits_qg2, labels_qg2))
+        logits_instance, labels_instance, logits_qg, labels_qg = batch_preds
+        loss = self.mix * self.loss(logits_instance, labels_instance) + (1. - self.mix) * self.loss(logits_qg, labels_qg)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -337,7 +314,7 @@ class SimRankParameter(ModelParameter):
         Default parameter setting for SimRank
         :return:
         """
-        self.para_dict = dict(model_id=self.model_id, aug_percent=0.7, dim=100, aug_type='qg', temp=0.07)
+        self.para_dict = dict(model_id=self.model_id, aug_percent=0.7, dim=100, aug_type='qg', temp=0.07, mix=0.5)
         return self.para_dict
 
     def to_para_string(self, log=False, given_para_dict=None):

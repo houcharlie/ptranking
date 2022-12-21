@@ -6,6 +6,7 @@ from enum import Enum, unique, auto
 import torch
 import torch.optim as optim
 import sys
+from tqdm import tqdm
 from torch.optim.lr_scheduler import StepLR
 from ptranking.ltr_adhoc.pretrain.augmentations import zeroes
 from ptranking.data.data_utils import LABEL_TYPE
@@ -586,7 +587,7 @@ class NeuralRanker(Evaluator):
         num_queries = 0
         epoch_loss = torch.tensor([0.0], device=self.device)
         batches_processed = 0
-        for batch_ids, batch_q_doc_vectors, batch_std_labels in train_data: # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
+        for batch_ids, batch_q_doc_vectors, batch_std_labels in tqdm(train_data): # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
             num_queries += len(batch_ids)
             if self.gpu: batch_q_doc_vectors, batch_std_labels = batch_q_doc_vectors.to(self.device), batch_std_labels.to(self.device)
 
