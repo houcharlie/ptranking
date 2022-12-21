@@ -29,12 +29,13 @@ from ptranking.ltr_adhoc.listwise.wassrank.wassRank import WassRank, WassRankPar
 from ptranking.ltr_adhoc.listwise.st_listnet import STListNet, STListNetParameter
 from ptranking.ltr_adhoc.listwise.lambdaloss import LambdaLoss, LambdaLossParameter
 from ptranking.ltr_adhoc.pretrain.simsiam import SimSiam, SimSiamParameter
+from ptranking.ltr_adhoc.pretrain.simrank import SimRank, SimRankParameter
 from ptranking.ltr_adhoc.listwise.lambdaranktune import LambdaRankTune, LambdaRankTuneParameter
 
 LTR_ADHOC_MODEL = [
     'RankMSE', 'RankNet', 'RankCosine', 'ListNet', 'ListMLE', 'STListNet',
     'ApproxNDCG', 'WassRank', 'LambdaRank', 'SoftRank', 'LambdaLoss',
-    'TwinRank', 'SimSiam', 'LambdaRankTune'
+    'TwinRank', 'SimSiam', 'LambdaRankTune', 'SimRank'
 ]
 
 
@@ -223,7 +224,7 @@ class LTREvaluator():
                 'RankNet', 'LambdaRank', 'STListNet', 'ApproxNDCG',
                 'DirectOpt', 'LambdaLoss', 'MarginLambdaLoss', 'MDPRank',
                 'ExpectedUtility', 'MDNExpectedUtility', 'RankingMDN',
-                'SoftRank', 'TwinRank', 'SimSiam', 'LambdaRankTune'
+                'SoftRank', 'TwinRank', 'SimSiam', 'LambdaRankTune', 'SimRank'
         ]:
             ranker = globals()[model_id](sf_para_dict=sf_para_dict,
                                          model_para_dict=model_para_dict,
@@ -403,22 +404,43 @@ class LTREvaluator():
         if argobj.aug_type == 'none':
             eval_dict['dir_output'] = os.path.join(
             eval_dict['dir_output'],
-            'Scratch_{3}_trial{4}/'.format(
+            'Scratch_{3}_layers{5}_trial{4}/'.format(
                 argobj.aug_type, argobj.aug_percent, argobj.pretrain_lr,
-                argobj.finetune_lr, argobj.trial_num))
+                argobj.finetune_lr, argobj.trial_num, argobj.layers))
         else:
-            eval_dict['dir_output'] = os.path.join(
-                eval_dict['dir_output'],
-                'Simsiam_{0}{1}_{2}_to_finetune_{3}_trial{4}/'.format(
-                    argobj.aug_type, argobj.aug_percent, argobj.pretrain_lr,
-                    argobj.finetune_lr, argobj.trial_num))
+            if argobj.pretrainer == 'SimSiam':
+                eval_dict['dir_output'] = os.path.join(
+                    eval_dict['dir_output'],
+                    'SimSiam_{0}{1}_{2}_dim_{5}_layers_{6}_to_finetune_{3}_trial{4}/'.format(
+                        argobj.aug_type, argobj.aug_percent, argobj.pretrain_lr,
+                        argobj.finetune_lr, argobj.trial_num, argobj.dim, argobj.layers))
+            elif argobj.pretrainer == 'SimRank':
+                eval_dict['dir_output'] = os.path.join(
+                    eval_dict['dir_output'],
+                    'SimRank_{0}{1}_{2}_dim_{5}_layers_{6}_to_finetune_{3}_temp{7}_trial{4}/'.format(
+                        argobj.aug_type, argobj.aug_percent, argobj.pretrain_lr,
+                        argobj.finetune_lr, argobj.trial_num, argobj.dim, argobj.layers, argobj.temperature))
+            else:
+                raise ValueError('Should be one of SimSiam or SimRank')
         if not os.path.exists(eval_dict['dir_output']):
             os.makedirs(eval_dict['dir_output'])
         
         if argobj.is_pretraining:
-            sf_para_dict['lr'] = argobj.pretrain_lr
-            model_para_dict['aug_type'] = argobj.aug_type
-            model_para_dict['aug_percent'] = argobj.aug_percent  
+            if argobj.pretrainer == 'SimSiam':
+                sf_para_dict['lr'] = argobj.pretrain_lr
+                sf_para_dict['layers'] = argobj.layers
+                model_para_dict['aug_type'] = argobj.aug_type
+                model_para_dict['aug_percent'] = argobj.aug_percent
+                model_para_dict['dim'] = argobj.dim 
+            elif argobj.pretrainer == 'SimRank':
+                sf_para_dict['lr'] = argobj.pretrain_lr
+                sf_para_dict['layers'] = argobj.layers
+                model_para_dict['aug_type'] = argobj.aug_type
+                model_para_dict['aug_percent'] = argobj.aug_percent
+                model_para_dict['dim'] = argobj.dim 
+                model_para_dict['temp'] = argobj.temperature
+            else:
+                raise ValueError('Should be one of SimSiam or SimRank')
         else:
             sf_para_dict['lr'] = argobj.finetune_lr
             if argobj.aug_type != 'none':
@@ -510,62 +532,62 @@ class LTREvaluator():
             print('Starting training', file=sys.stderr)
             best_metric_val = None
             for epoch_k in range(1, epochs + 1):
-                # torch_fold_k_epoch_k_loss, stop_training = ranker.train(train_data=train_data, epoch_k=epoch_k,
-                #                                                         presort=train_presort, label_type=label_type)
                 torch_fold_k_epoch_k_loss, stop_training = ranker.train(
-                    train_data=small_train_set,
-                    epoch_k=epoch_k,
-                    presort=train_presort,
-                    label_type=label_type)
-                train_loss_metric_val = torch_fold_k_epoch_k_loss.squeeze(
-                    -1).data.cpu().numpy()
-                torch_train_metric_value = ranker.validation(
-                    vali_data=small_train_set,
-                    k=vali_k,
-                    device=ranker.device,
-                    vali_metric=vali_metric,
-                    label_type=label_type,
-                    max_label=max_label,
-                    presort=train_presort)
-                train_ndcg_print = torch_train_metric_value.squeeze().data.cpu(
-                ).numpy()
-                val_train_metric_value = ranker.validation(
-                    vali_data=vali_data,
-                    k=vali_k,
-                    device=ranker.device,
-                    vali_metric=vali_metric,
-                    label_type=label_type,
-                    max_label=max_label,
-                    presort=validation_presort)
-                val_ndcg_print = val_train_metric_value.squeeze().data.cpu(
-                ).numpy()
-                with summary_writer.as_default():
-                    tf.summary.scalar('train_ndcg',
-                                      train_ndcg_print,
-                                      step=epoch_k)
-                    tf.summary.scalar('val_ndcg', val_ndcg_print, step=epoch_k)
-                print(
-                    'Fold {0}   Epoch {1}   Loss {2}  Train NDCG {3} Val NDCG {4}'
-                    .format(fold_k, epoch_k, torch_fold_k_epoch_k_loss,
-                            train_ndcg_print, val_ndcg_print),
-                    file=sys.stderr)
+                        train_data=small_train_set,
+                        epoch_k=epoch_k,
+                        presort=train_presort,
+                        label_type=label_type)
+                if (model_id == 'SimSiam' and epoch_k % 50 == 0) or model_id != 'SimSiam':
+                    train_loss_metric_val = torch_fold_k_epoch_k_loss.squeeze(
+                        -1).data.cpu().numpy()
+                    torch_train_metric_value = ranker.validation(
+                        vali_data=small_train_set,
+                        k=vali_k,
+                        device=ranker.device,
+                        vali_metric=vali_metric,
+                        label_type=label_type,
+                        max_label=max_label,
+                        presort=train_presort)
+                    train_ndcg_print = torch_train_metric_value.squeeze().data.cpu(
+                    ).numpy()
+                    val_train_metric_value = ranker.validation(
+                        vali_data=vali_data,
+                        k=vali_k,
+                        device=ranker.device,
+                        vali_metric=vali_metric,
+                        label_type=label_type,
+                        max_label=max_label,
+                        presort=validation_presort)
+                    val_ndcg_print = val_train_metric_value.squeeze().data.cpu(
+                    ).numpy()
+                    with summary_writer.as_default():
+                        tf.summary.scalar('train_ndcg',
+                                        train_ndcg_print,
+                                        step=epoch_k)
+                        tf.summary.scalar('val_ndcg', val_ndcg_print, step=epoch_k)
+                    print(
+                        'Fold {0}   Epoch {1}   Loss {2}  Train NDCG {3} Val NDCG {4}'
+                        .format(fold_k, epoch_k, torch_fold_k_epoch_k_loss,
+                                train_ndcg_print, val_ndcg_print),
+                        file=sys.stderr)
 
-                if best_metric_val is None or val_ndcg_print > best_metric_val:
-                    best_metric_val = val_ndcg_print
-                    ranker.save(dir=self.dir_run + '/',
-                                name='_'.join(['net_params_best']) + '.pkl')
+                    if best_metric_val is None or val_ndcg_print > best_metric_val:
+                        best_metric_val = val_ndcg_print
+                        ranker.save(dir=self.dir_run + '/',
+                                    name='_'.join(['net_params_best']) + '.pkl')
+                    with summary_writer.as_default():
+                        tf.summary.scalar('train_loss',
+                                        train_loss_metric_val,
+                                        step=epoch_k)
 
                 ranker.scheduler.step(
                 )  # adaptive learning rate with step_size=40, gamma=0.5
-                with summary_writer.as_default():
-                    tf.summary.scalar('train_loss',
-                                      train_loss_metric_val,
-                                      step=epoch_k)
+                
 
                 if stop_training:
                     print('training is failed !')
                     break
-
+            print("Saving in..", self.dir_run, file = sys.stderr)
             ranker.save(dir=self.dir_run + '/',
                         name='_'.join(['net_params']) + '.pkl')
 

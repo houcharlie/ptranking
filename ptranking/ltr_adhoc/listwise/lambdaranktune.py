@@ -49,6 +49,7 @@ class LambdaRankTune(AdhocNeuralRanker):
         self.config_optimizer()
         if len(checkpoint_dir) > 0:
             print('Loading checkpoint...', file=sys.stderr)
+            print(os.path.join(checkpoint_dir, 'net_params.pkl'), file=sys.stderr)
             checkpoint_file_name = os.path.join(checkpoint_dir, 'net_params.pkl')
             pretrained_dict = torch.load(checkpoint_file_name, map_location=self.device)
             pointsf_dict = self.point_sf.state_dict()

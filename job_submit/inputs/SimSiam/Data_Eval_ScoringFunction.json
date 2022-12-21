@@ -12,7 +12,7 @@
   },
 
   "EvalSetting": {
-    "dir_output":"/afs/ece.cmu.edu/usr/charlieh/ptranking_results/",
+    "dir_output":"/afs/ece.cmu.edu/usr/charlieh/ptranking_results/600_epoch/",
     "epochs":300,
 
     "do_validation":true,

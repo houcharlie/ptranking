@@ -12,8 +12,8 @@
   },
 
   "EvalSetting": {
-    "dir_output":"/afs/ece.cmu.edu/usr/charlieh/ptranking_results/600_epoch/",
-    "epochs":600,
+    "dir_output":"/scratch/charlieh/ptranking-results/OVERFIT/embed/",
+    "epochs":200,
 
     "do_validation":true,
     "vali_metric": "nDCG",
@@ -22,7 +22,7 @@
 
     "loss_guided":false,
 
-    "do_log":true,
+    "do_log":false,
     "log_step":1,
     "do_summary":false,
 

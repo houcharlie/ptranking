@@ -8,12 +8,12 @@
 
     "binary_rele":[false],
     "unknown_as_zero":[false],
-    "tr_batch_size":[100]
+    "tr_batch_size":[65536]
   },
 
   "EvalSetting": {
-    "dir_output":"/afs/ece.cmu.edu/usr/charlieh/ptranking_results/600_epoch/",
-    "epochs":600,
+    "dir_output":"/scratch/charlieh/ptranking-results/",
+    "epochs":500,
 
     "do_validation":true,
     "vali_metric": "nDCG",
@@ -23,7 +23,7 @@
     "loss_guided":false,
 
     "do_log":true,
-    "log_step":1,
+    "log_step":20,
     "do_summary":false,
 
     "mask":{
@@ -36,7 +36,7 @@
   "SFParameter": {
     "sf_id":"pointsf",
     "opt":["Adam"],
-    "lr":[0.001],
+    "lr":[0.0001],
     "pointsf":{
       "BN":[true],
       "bn_type":["BN"],
@@ -44,7 +44,8 @@
       "layers":[5],
       "AF":["GE"],
       "TL_AF":["GE"],
-      "apply_tl_af":[true]
+      "apply_tl_af":[true],
+      "out_dim":[136]
     },
     "listsf":{
       "BN":[true],

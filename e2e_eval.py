@@ -89,13 +89,25 @@ if __name__ == '__main__':
     ''' the augmentation percentage '''
     parser.add_argument('-aug_percent', type=float, help='the percentage of augmentation.')
 
+    ''' simsiam dim '''
+    parser.add_argument('-dim', type=int, help='the dimension of pretrainer.')
+
+    ''' layers '''
+    parser.add_argument('-layers', type=int, help='the number of layers.')
+
+    ''' pretrainer '''
+    parser.add_argument('-pretrainer', type=str, help='the type of pretrainer.')
+
+    ''' pretrainer '''
+    parser.add_argument('-temperature', type=float, help='temperature of the softmax loss (if applicable).')
+
     argobj = parser.parse_args()
     evaluator = LTREvaluator(cuda=argobj.cuda)
 
     if argobj.aug_type != 'none':
         print('Starting pretraining!', sys.stderr)
         argobj.is_pretraining = True
-        evaluator.run(model_id='SimSiam', dir_json=os.path.join(argobj.dir_json, 'simsiam/'), config_with_json=True, argobj=argobj)
+        evaluator.run(model_id=argobj.pretrainer, dir_json=os.path.join(argobj.dir_json, '{0}/'.format(argobj.pretrainer)), config_with_json=True, argobj=argobj)
 
     print('Starting finetuning!', sys.stderr)
     argobj.is_pretraining = False

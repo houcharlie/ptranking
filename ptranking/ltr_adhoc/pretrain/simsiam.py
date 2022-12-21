@@ -49,7 +49,10 @@ class SimSiam(NeuralRanker):
 
     def config_heads(self):
         dim = self.dim
-        prev_dim = self.point_sf.ff_7.weight.shape[0]
+        prev_dim = -1
+        for name, param in self.point_sf.named_parameters():
+            if 'ff' in name and 'bias' not in name:
+                prev_dim = param.shape[0]
         projector = nn.Sequential(nn.Linear(prev_dim, prev_dim, bias=False),
                                   nn.BatchNorm1d(prev_dim),
                                   nn.ReLU(), # first layer
@@ -79,7 +82,7 @@ class SimSiam(NeuralRanker):
         for param in self.predictor.parameters():
             all_params.append(param)
         
-        return all_params
+        return nn.ParameterList(all_params)
 
     def ini_pointsf(self, num_features=None, h_dim=100, out_dim=136, num_layers=3, AF='R', TL_AF='S', apply_tl_af=False,
                     BN=True, bn_type=None, bn_affine=False, dropout=0.1):
@@ -116,9 +119,13 @@ class SimSiam(NeuralRanker):
 
     def eval_mode(self):
         self.point_sf.eval()
+        self.projector.eval()
+        self.predictor.eval()
 
     def train_mode(self):
         self.point_sf.train(mode=True)
+        self.projector.train(mode=True)
+        self.predictor.train(mode=True)
 
     def save(self, dir, name):
         if not os.path.exists(dir):
