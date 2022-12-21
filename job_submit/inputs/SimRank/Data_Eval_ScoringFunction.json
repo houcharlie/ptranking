@@ -8,12 +8,12 @@
 
     "binary_rele":[false],
     "unknown_as_zero":[false],
-    "tr_batch_size":[5000]
+    "tr_batch_size":[1000]
   },
 
   "EvalSetting": {
     "dir_output":"/afs/ece.cmu.edu/usr/charlieh/ptranking_results/simrank_test/",
-    "epochs":1,
+    "epochs":100,
 
     "do_validation":true,
     "vali_metric": "nDCG",

@@ -529,7 +529,6 @@ class LTREvaluator():
             if model_id != 'SimSiam' and model_id != 'SimRank':
                 print('Shrinking set', file=sys.stderr)
                 small_train_set = small_train_set[:len(small_train_set) // 10]
-
             print('Starting training', file=sys.stderr)
             best_metric_val = None
             for epoch_k in range(1, epochs + 1):
@@ -538,8 +537,12 @@ class LTREvaluator():
                         epoch_k=epoch_k,
                         presort=train_presort,
                         label_type=label_type)
-                print('epoch', epoch_k, 'train loss', torch_fold_k_epoch_k_loss)
-                if (model_id in ['SimSiam', 'SimRank'] and epoch_k % 50 == 0) or model_id not in ['SimSiam', 'SimRank']:
+                print('epoch', epoch_k, 'train loss', torch_fold_k_epoch_k_loss, file=sys.stderr)
+                train_loss_metric_val = torch_fold_k_epoch_k_loss.squeeze(
+                        -1).data.cpu().numpy()
+                with summary_writer.as_default():
+                    tf.summary.scalar('train loss', train_loss_metric_val, step=epoch_k)
+                if (model_id in ['SimSiam'] and epoch_k % 50 == 0) or model_id not in ['SimSiam', 'SimRank']:
                     train_loss_metric_val = torch_fold_k_epoch_k_loss.squeeze(
                         -1).data.cpu().numpy()
                     torch_train_metric_value = ranker.validation(
@@ -598,31 +601,34 @@ class LTREvaluator():
                     fold_k=fold_k,
                     dir_run=self.dir_run,
                     train_data_length=train_data.__len__())
-
-            ranker.load(self.dir_run + '/' + '_'.join(['net_params_best']) +
+            if model_id == 'SimRank':
+                ranker.load(self.dir_run + '/' + '_'.join(['net_params']) +
                         '.pkl',
                         device=self.device)
+            else:
+                ranker.load(self.dir_run + '/' + '_'.join(['net_params_best']) +
+                            '.pkl',
+                            device=self.device)
             # if do_vali: # using the fold-wise optimal model for later testing based on validation data
             #     ranker.load(modeldir, device=self.device)
             #vali_tape.clear_fold_buffer(fold_k=fold_k)
             # else:            # buffer the model after a fixed number of training-epoches if no validation is deployed
             #     fold_optimal_checkpoint = '-'.join(['Fold', str(fold_k)])
             #     ranker.save(dir=self.dir_run + fold_optimal_checkpoint + '/', name='_'.join(['net_params_epoch', str(epoch_k)]) + '.pkl')
-            print('Train results')
-            traintape.fold_evaluation(model_id=model_id,
-                                      ranker=ranker,
-                                      test_data=small_train_set,
-                                      max_label=max_label,
-                                      fold_k=fold_k)
-            print('Test results')
-            cv_tape.fold_evaluation(model_id=model_id,
-                                    ranker=ranker,
-                                    test_data=test_data,
-                                    max_label=max_label,
-                                    fold_k=fold_k)
+            if model_id not in ['SimRank', 'SimSiam']:
+                print('Train results')
+                traintape.fold_evaluation(model_id=model_id,
+                                        ranker=ranker,
+                                        test_data=small_train_set,
+                                        max_label=max_label,
+                                        fold_k=fold_k)
+                print('Test results')
+                cv_tape.fold_evaluation(model_id=model_id,
+                                        ranker=ranker,
+                                        test_data=test_data,
+                                        max_label=max_label,
+                                        fold_k=fold_k)
         print('Tensorboard dir: ' + log_dir, file=sys.stderr)
-        ndcg_cv_avg_scores = cv_tape.get_cv_performance()
-        return ndcg_cv_avg_scores
 
     def naive_train(self, ranker, eval_dict, train_data=None, test_data=None):
         """
@@ -858,24 +864,13 @@ class LTREvaluator():
 
                 for sf_para_dict in self.iterate_scoring_function_setting():
                     for model_para_dict in self.iterate_model_setting():
-                        curr_cv_avg_scores = self.kfold_cv_eval(
+                        self.kfold_cv_eval(
                             data_dict=data_dict,
                             eval_dict=eval_dict,
                             sf_para_dict=sf_para_dict,
                             model_para_dict=model_para_dict,
                             argobj=argobj)
-                        if curr_cv_avg_scores[k_index] >= max_cv_avg_scores[
-                                k_index]:
-                            max_cv_avg_scores, max_sf_para_dict, max_eval_dict, max_model_para_dict = \
-                                                           curr_cv_avg_scores, sf_para_dict, eval_dict, model_para_dict
 
-        # log max setting
-        self.log_max(data_dict=data_dict,
-                     eval_dict=max_eval_dict,
-                     max_cv_avg_scores=max_cv_avg_scores,
-                     sf_para_dict=max_sf_para_dict,
-                     log_para_str=self.model_parameter.to_para_string(
-                         log=True, given_para_dict=max_model_para_dict))
 
     def run(self,
             debug=False,
