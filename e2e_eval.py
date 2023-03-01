@@ -8,13 +8,22 @@
 import sys
 import os
 import argparse
+import random
+import numpy as np
+import torch
 from ptranking.utils.args.argsUtil import ArgsUtil
 
 from ptranking.ltr_adhoc.eval.ltr import LTREvaluator, LTR_ADHOC_MODEL
 from ptranking.ltr_tree.eval.ltr_tree import TreeLTREvaluator, LTR_TREE_MODEL
 from ptranking.ltr_adversarial.eval.ltr_adversarial import AdLTREvaluator, LTR_ADVERSARIAL_MODEL
 
-
+def setup_seed(seed):
+    random.seed(seed)                          
+    np.random.seed(seed)                       
+    torch.manual_seed(seed)                    
+    torch.cuda.manual_seed(seed)               
+    torch.cuda.manual_seed_all(seed)           
+    torch.backends.cudnn.deterministic = True  
 """
 The command line usage:
 
@@ -104,18 +113,36 @@ if __name__ == '__main__':
     ''' mix '''
     parser.add_argument('-mix', type=float, help='Mix between instance and set level simclr')
 
+    ''' shrink '''
+    parser.add_argument('-shrink', type=float, help='How much to shrink the train set')
+
+    ''' blend '''
+    parser.add_argument('-blend', type=float, help='Mixing between instance and qg level')
+
+    ''' scale '''
+    parser.add_argument('-scale', type=float, help='Scale of gaussian')
+
+    ''' gumbel '''
+    parser.add_argument('-gumbel', type=float, help='Temperature scaling of gumbel noise')
+
     argobj = parser.parse_args()
-    evaluator = LTREvaluator(cuda=argobj.cuda)
+    
+    if argobj.pretrainer == 'LightGBMLambdaMART':
+        evaluator = TreeLTREvaluator()
+        evaluator.run(model_id=argobj.pretrainer, dir_json=argobj.dir_json, config_with_json=True, argobj=argobj)
 
-    if argobj.aug_type != 'none':
-        print('Starting pretraining!', sys.stderr)
-        argobj.is_pretraining = True
-        evaluator.run(model_id=argobj.pretrainer, dir_json=os.path.join(argobj.dir_json, '{0}/'.format(argobj.pretrainer)), config_with_json=True, argobj=argobj)
-
-    print('Starting finetuning!', sys.stderr)
-    argobj.is_pretraining = False
-    if argobj.aug_type == 'none':
-        evaluator.run(model_id="LambdaRank", dir_json=os.path.join(argobj.dir_json, 'lambdarank/'), config_with_json=True, argobj=argobj)
     else:
-        evaluator.run(model_id="LambdaRankTune", dir_json=os.path.join(argobj.dir_json, 'lambdaranktune/'), config_with_json=True, argobj=argobj)
+        evaluator = LTREvaluator(cuda=argobj.cuda)
+        # setup_seed(0)
+        if argobj.aug_type != 'none':
+            print('Starting pretraining!', sys.stderr)
+            argobj.is_pretraining = True
+            evaluator.run(model_id=argobj.pretrainer, dir_json=os.path.join(argobj.dir_json, '{0}/'.format(argobj.pretrainer)), config_with_json=True, argobj=argobj)
+
+        print('Starting finetuning!', sys.stderr)
+        argobj.is_pretraining = False
+        if argobj.aug_type == 'none':
+            evaluator.run(model_id="RankNet", dir_json=os.path.join(argobj.dir_json, 'ranknet/'), config_with_json=True, argobj=argobj)
+        else:
+            evaluator.run(model_id="LambdaRankTune", dir_json=os.path.join(argobj.dir_json, 'lambdaranktune/'), config_with_json=True, argobj=argobj)
 

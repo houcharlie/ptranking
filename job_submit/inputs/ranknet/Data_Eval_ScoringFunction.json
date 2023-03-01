@@ -13,7 +13,7 @@
 
   "EvalSetting": {
     "dir_output":"/afs/ece.cmu.edu/usr/charlieh/ptranking_results/smaller_batch/",
-    "epochs":300,
+    "epochs":100,
 
     "do_validation":true,
     "vali_metric": "nDCG",

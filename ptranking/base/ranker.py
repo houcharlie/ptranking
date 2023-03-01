@@ -6,6 +6,7 @@ from enum import Enum, unique, auto
 import torch
 import torch.optim as optim
 import sys
+import numpy as np
 from tqdm import tqdm
 from torch.optim.lr_scheduler import StepLR
 from ptranking.ltr_adhoc.pretrain.augmentations import zeroes
@@ -45,6 +46,11 @@ class Evaluator():
             else:
                 num_queries += len(batch_ids)
 
+            # new_batch_std_labels = batch_std_labels.detach().clone()
+            # new_batch_std_labels[new_batch_std_labels > 2.] = 1.
+            # new_batch_std_labels[new_batch_std_labels <= 2.] = 0.
+            # batch_std_labels = new_batch_std_labels
+            
             if self.gpu: batch_q_doc_vectors = batch_q_doc_vectors.to(self.device)
             batch_preds = self.predict(batch_q_doc_vectors)
             if self.gpu: batch_preds = batch_preds.cpu()
@@ -202,7 +208,7 @@ class Evaluator():
             raise NotImplementedError
 
     def adhoc_performance_at_ks(self, test_data=None, ks=[1, 5, 10], label_type=LABEL_TYPE.MultiLabel, max_label=None,
-                                presort=False, device='cpu', need_per_q=False):
+                                presort=False, device='cpu', need_per_q=False, filters=None):
         '''
         Compute the performance using multiple metrics
         '''
@@ -214,13 +220,38 @@ class Evaluator():
         sum_ap_at_ks = torch.zeros(len(ks))
         sum_p_at_ks = torch.zeros(len(ks))
         sum_ndcg0_at_ks = torch.zeros(len(ks))
-
+        
         if need_per_q: list_per_q_p, list_per_q_ap, list_per_q_nerr, list_per_q_ndcg, list_per_q_ndcg0 = [], [], [], []
 
         for batch_ids, batch_q_doc_vectors, batch_std_labels in test_data:  # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
+            curr_len = len(batch_ids)
+            if filters is not None:
+                keep_indices = set()
+                for i in range(batch_q_doc_vectors.shape[0]):
+                    for j in range(len(filters)):
+                        curridx = filters[j][0]
+                        thresholds = filters[j][1]
+                        for threshold in thresholds:
+                            direction = threshold[1]
+                            val_threshold = threshold[0]
+                            if direction > 0:
+                                if torch.any((batch_q_doc_vectors[i, :, curridx] > val_threshold).squeeze()):
+                                    keep_indices.add(i)
+                            else:
+                                if torch.any((batch_q_doc_vectors[i, :, curridx] < val_threshold).squeeze()):
+                                    keep_indices.add(i)
+                
+                batch_q_doc_vector_filter = batch_q_doc_vectors[list(keep_indices), :, :]
+                batch_q_doc_vectors = batch_q_doc_vector_filter
+                batch_std_labels = batch_std_labels[list(keep_indices), :]
+                curr_len = len(keep_indices)
+                
+                # import ipdb; ipdb.set_trace()
+            if curr_len == 0:
+                continue
             if self.gpu: batch_q_doc_vectors = batch_q_doc_vectors.to(self.device)
             batch_preds = self.predict(batch_q_doc_vectors)
-            batch_preds_0 = self.predict(zeroes(batch_q_doc_vectors, 0.2, 'anything'))
+            batch_preds_0 = self.predict(zeroes(batch_q_doc_vectors, 0.6, 'anything'))
             if self.gpu: batch_preds = batch_preds.cpu(); batch_preds_0 = batch_preds_0.cpu()
 
             _, batch_pred_desc_inds = torch.sort(batch_preds, dim=1, descending=True)
@@ -260,8 +291,8 @@ class Evaluator():
                 list_per_q_ndcg.append(batch_ndcg_at_ks)
                 list_per_q_ndcg0.append(batch_ndcg0_at_ks)
 
-            num_queries += len(batch_ids)
-
+            num_queries += curr_len
+        print('Num queries evaluated', num_queries)
         avg_ndcg_at_ks = sum_ndcg_at_ks / num_queries
         avg_nerr_at_ks = sum_nerr_at_ks / num_queries
         avg_ap_at_ks = sum_ap_at_ks / num_queries
@@ -532,7 +563,7 @@ class NeuralRanker(Evaluator):
         elif 'Adagrad' == self.opt:
             self.optimizer = optim.Adagrad(self.get_parameters(), lr=self.lr, weight_decay=self.weight_decay)
         elif 'SGD' == self.opt:
-            self.optimizer = optim.SGD(self.get_parameters(), lr=self.lr, weight_decay=self.weight_decay)
+            self.optimizer = optim.SGD(self.get_parameters(), lr=self.lr, weight_decay=self.weight_decay, momentum=0)
         else:
             raise NotImplementedError
 
@@ -598,7 +629,6 @@ class NeuralRanker(Evaluator):
             else:
                 epoch_loss += batch_loss.item()
             batches_processed += 1
-
         epoch_loss = epoch_loss/num_queries
         return epoch_loss, stop_training
 

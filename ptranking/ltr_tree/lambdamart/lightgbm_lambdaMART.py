@@ -48,7 +48,7 @@ class LightGBMLambdaMART():
             else:
                 raise NotImplementedError
 
-    def run(self, fold_k, file_train, file_vali, file_test, data_dict=None, eval_dict=None, save_model_dir=None):
+    def run(self, fold_k, file_train, file_vali, file_test, argobj, data_dict=None, eval_dict=None, save_model_dir=None):
         """
         Run lambdaMART model based on the specified datasets.
         :param fold_k:
@@ -67,10 +67,18 @@ class LightGBMLambdaMART():
         # prepare training & testing datasets
         file_train_data, file_train_group = load_letor_data_as_libsvm_data(file_train, split_type=SPLIT_TYPE.Train,
                                                        data_dict=data_dict, eval_dict=eval_dict, presort=train_presort)
-        x_train, y_train = load_svmlight_file(file_train_data)
-        group_train = np.loadtxt(file_train_group)
+        x_train_full, y_train_full = load_svmlight_file(file_train_data)
+        # x_train = x_train_full[:int(x_train_full.shape[0] * argobj.shrink),:]
+        # y_train = y_train_full[:int(len(y_train_full) * argobj.shrink)]
+        group_train_full = np.loadtxt(file_train_group)
+        group_train = group_train_full[:int(len(group_train_full) * argobj.shrink)]
+        train_top_idx = np.sum(group_train)
+        x_train = x_train_full[:int(train_top_idx),:]
+        y_train = y_train_full[:int(train_top_idx)]
+        # x_train = x_train_full
+        # y_train = y_train_full
+        # group_train = group_train_full
         train_set = Dataset(data=x_train, label=y_train, group=group_train)
-
         file_test_data, file_test_group = load_letor_data_as_libsvm_data(file_test, split_type=SPLIT_TYPE.Test,
                                                      data_dict=data_dict, eval_dict=eval_dict, presort=test_presort)
         x_test, y_test = load_svmlight_file(file_test_data)

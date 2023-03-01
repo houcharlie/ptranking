@@ -722,9 +722,9 @@ class CVTape(object):
             self.list_per_q_ndcg = []
             self.list_per_q_ndcg0 = []
 
-    def fold_evaluation(self, ranker, test_data, max_label, fold_k, model_id):
+    def fold_evaluation(self, ranker, test_data, max_label, fold_k, model_id, filters=None):
         avg_ndcg_at_ks, avg_nerr_at_ks, avg_ap_at_ks, avg_p_at_ks, avg_ndcg0_at_ks = \
-            ranker.adhoc_performance_at_ks(test_data=test_data, ks=self.cutoffs, device='cpu', max_label=max_label)
+            ranker.adhoc_performance_at_ks(test_data=test_data, ks=self.cutoffs, device='cpu', max_label=max_label, filters=filters)
         fold_ndcg_ks = avg_ndcg_at_ks.data.numpy()
         fold_nerr_ks = avg_nerr_at_ks.data.numpy()
         fold_ap_ks = avg_ap_at_ks.data.numpy()

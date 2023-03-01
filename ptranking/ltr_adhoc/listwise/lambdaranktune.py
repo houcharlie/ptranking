@@ -80,6 +80,42 @@ class LambdaRankTune(AdhocNeuralRanker):
         return point_sf
 
 
+    # def custom_loss_function(self, batch_preds, batch_std_labels, **kwargs):
+    #     '''
+    #     @param batch_preds: [batch, ranking_size] each row represents the relevance predictions for documents associated with the same query
+    #     @param batch_std_labels: [batch, ranking_size] each row represents the standard relevance grades for documents associated with the same query
+    #     @param kwargs:
+    #     @return:
+    #     '''
+    #     assert 'label_type' in kwargs and LABEL_TYPE.MultiLabel == kwargs['label_type']
+    #     label_type = kwargs['label_type']
+    #     assert 'presort' in kwargs and kwargs['presort'] is True  # aiming for direct usage of ideal ranking
+
+    #     # sort documents according to the predicted relevance
+    #     batch_descending_preds, batch_pred_desc_inds = torch.sort(batch_preds, dim=1, descending=True)
+    #     # reorder batch_stds correspondingly so as to make it consistent.
+    #     # BTW, batch_stds[batch_preds_sorted_inds] only works with 1-D tensor
+    #     batch_predict_rankings = torch.gather(batch_std_labels, dim=1, index=batch_pred_desc_inds)
+
+    #     batch_p_ij, batch_std_p_ij = get_pairwise_comp_probs(batch_preds=batch_descending_preds,
+    #                                                          batch_std_labels=batch_predict_rankings,
+    #                                                          sigma=self.sigma)
+
+    #     batch_delta_ndcg = get_delta_ndcg(batch_ideal_rankings=batch_std_labels,
+    #                                       batch_predict_rankings=batch_predict_rankings,
+    #                                       label_type=label_type, device=self.device)
+
+    #     _batch_loss = F.binary_cross_entropy(input=torch.triu(batch_p_ij, diagonal=1),
+    #                                          target=torch.triu(batch_std_p_ij, diagonal=1),
+    #                                          weight=torch.triu(batch_delta_ndcg, diagonal=1), reduction='none')
+
+    #     batch_loss = torch.sum(torch.sum(_batch_loss, dim=(2, 1)))
+
+    #     self.optimizer.zero_grad()
+    #     batch_loss.backward()
+    #     self.optimizer.step()
+
+    #     return batch_loss
     def custom_loss_function(self, batch_preds, batch_std_labels, **kwargs):
         '''
         @param batch_preds: [batch, ranking_size] each row represents the relevance predictions for documents associated with the same query
@@ -87,28 +123,10 @@ class LambdaRankTune(AdhocNeuralRanker):
         @param kwargs:
         @return:
         '''
-        assert 'label_type' in kwargs and LABEL_TYPE.MultiLabel == kwargs['label_type']
-        label_type = kwargs['label_type']
-        assert 'presort' in kwargs and kwargs['presort'] is True  # aiming for direct usage of ideal ranking
-
-        # sort documents according to the predicted relevance
-        batch_descending_preds, batch_pred_desc_inds = torch.sort(batch_preds, dim=1, descending=True)
-        # reorder batch_stds correspondingly so as to make it consistent.
-        # BTW, batch_stds[batch_preds_sorted_inds] only works with 1-D tensor
-        batch_predict_rankings = torch.gather(batch_std_labels, dim=1, index=batch_pred_desc_inds)
-
-        batch_p_ij, batch_std_p_ij = get_pairwise_comp_probs(batch_preds=batch_descending_preds,
-                                                             batch_std_labels=batch_predict_rankings,
+        batch_p_ij, batch_std_p_ij = get_pairwise_comp_probs(batch_preds=batch_preds, batch_std_labels=batch_std_labels,
                                                              sigma=self.sigma)
-
-        batch_delta_ndcg = get_delta_ndcg(batch_ideal_rankings=batch_std_labels,
-                                          batch_predict_rankings=batch_predict_rankings,
-                                          label_type=label_type, device=self.device)
-
         _batch_loss = F.binary_cross_entropy(input=torch.triu(batch_p_ij, diagonal=1),
-                                             target=torch.triu(batch_std_p_ij, diagonal=1),
-                                             weight=torch.triu(batch_delta_ndcg, diagonal=1), reduction='none')
-
+                                             target=torch.triu(batch_std_p_ij, diagonal=1), reduction='none')
         batch_loss = torch.sum(torch.sum(_batch_loss, dim=(2, 1)))
 
         self.optimizer.zero_grad()
@@ -116,7 +134,6 @@ class LambdaRankTune(AdhocNeuralRanker):
         self.optimizer.step()
 
         return batch_loss
-
     def train(self, train_data, epoch_k=None, **kwargs):
         '''
         One epoch training using the entire training data
@@ -148,7 +165,6 @@ class LambdaRankTune(AdhocNeuralRanker):
             else:
                 epoch_loss += batch_loss.item()
             batches_processed += 1
-
         epoch_loss = epoch_loss/num_queries
         self.epochs += 1
         return epoch_loss, stop_training

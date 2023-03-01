@@ -50,3 +50,5 @@ coverage.xml
 docs/_build/
 
 *simsiam_expts*
+*rankneg_expt*
+*MSLR_val_plots*

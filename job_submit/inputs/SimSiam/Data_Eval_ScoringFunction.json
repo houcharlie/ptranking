@@ -8,13 +8,12 @@
 
     "binary_rele":[false],
     "unknown_as_zero":[false],
-    "tr_batch_size":[1000]
+    "tr_batch_size":[10000]
   },
 
   "EvalSetting": {
-    "dir_output":"/afs/ece.cmu.edu/usr/charlieh/ptranking_results/600_epoch/",
+    "dir_output":"/afs/ece.cmu.edu/usr/charlieh/ptranking_results/smaller_batch/",
     "epochs":300,
-
     "do_validation":true,
     "vali_metric": "nDCG",
     "vali_k":5,
@@ -22,7 +21,7 @@
 
     "loss_guided":false,
 
-    "do_log":true,
+    "do_log":false,
     "log_step":20,
     "do_summary":false,
 

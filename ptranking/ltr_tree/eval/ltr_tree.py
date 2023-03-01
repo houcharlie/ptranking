@@ -220,7 +220,7 @@ class TreeLTREvaluator(LTREvaluator):
             if not os.path.exists(self.save_model_dir):
                 os.makedirs(self.save_model_dir)
 
-    def kfold_cv_eval(self, data_dict=None, eval_dict=None, model_para_dict=None):
+    def kfold_cv_eval(self, data_dict=None, eval_dict=None, model_para_dict=None, argobj=None):
         """
         Evaluation based on k-fold cross validation if multiple folds exist
         :param data_dict:
@@ -248,14 +248,14 @@ class TreeLTREvaluator(LTREvaluator):
         list_all_fold_ap_at_ks_per_q = []
         list_all_fold_p_at_ks_per_q = []
 
-        for fold_k in range(1, fold_num + 1):
+        for fold_k in range(1, 2):
             # determine the file paths
             file_train, file_vali, file_test = self.determine_files(data_dict=data_dict, fold_k=fold_k)
 
             self.update_save_model_dir(data_dict=data_dict, fold_k=fold_k)
 
             y_test, group_test, y_pred = tree_ranker.run(fold_k=fold_k, file_train=file_train, file_vali=file_vali,
-                                                         file_test=file_test, data_dict=data_dict, eval_dict=eval_dict,
+                                                         file_test=file_test, argobj=argobj, data_dict=data_dict, eval_dict=eval_dict,
                                                          save_model_dir=self.save_model_dir)
 
             fold_avg_ndcg_at_ks, fold_avg_nerr_at_ks, fold_avg_ap_at_ks, fold_avg_p_at_ks,\
@@ -338,7 +338,7 @@ class TreeLTREvaluator(LTREvaluator):
         else:
             self.model_parameter = globals()[model_id + "Parameter"](debug=debug)
 
-    def point_run(self, debug=False, model_id=None, data_id=None, dir_data=None, dir_output=None):
+    def point_run(self, debug=False, model_id=None, data_id=None, dir_data=None, dir_output=None, argobj=None):
         """
         Perform one-time run based on given setting.
         :param debug:
@@ -353,10 +353,10 @@ class TreeLTREvaluator(LTREvaluator):
         self.set_model_setting(debug=debug, model_id=model_id)
 
         self.kfold_cv_eval(data_dict=self.get_default_data_setting(), eval_dict=self.get_default_eval_setting(),
-                           model_para_dict=self.get_default_model_setting())
+                           model_para_dict=self.get_default_model_setting(), argobj=argobj)
 
 
-    def grid_run(self, debug=False, model_id=None, data_id=None, dir_data=None, dir_output=None, dir_json=None):
+    def grid_run(self, debug=False, model_id=None, data_id=None, dir_data=None, dir_output=None, dir_json=None, argobj=None):
         """
         Run based on grid-search.
         """
@@ -376,15 +376,15 @@ class TreeLTREvaluator(LTREvaluator):
         for data_dict in self.iterate_data_setting():
             for eval_dict in self.iterate_eval_setting():
                     for model_para_dict in self.iterate_model_setting():
-                        self.kfold_cv_eval(data_dict=data_dict, eval_dict=eval_dict, model_para_dict=model_para_dict)
+                        self.kfold_cv_eval(data_dict=data_dict, eval_dict=eval_dict, model_para_dict=model_para_dict, argobj=argobj)
 
     def run(self, debug=False, model_id=None, config_with_json=None, dir_json=None,
-            data_id=None, dir_data=None, dir_output=None, grid_search=False):
+            data_id=None, dir_data=None, dir_output=None, grid_search=False, argobj=None):
         if config_with_json:
             assert dir_json is not None
-            self.grid_run(debug=debug, model_id=model_id, dir_json=dir_json)
+            self.grid_run(debug=debug, model_id=model_id, dir_json=dir_json, argobj=argobj)
         else:
             if grid_search:
-                self.grid_run(debug=debug, model_id=model_id, data_id=data_id, dir_data=dir_data, dir_output=dir_output)
+                self.grid_run(debug=debug, model_id=model_id, data_id=data_id, dir_data=dir_data, dir_output=dir_output, argobj=argobj)
             else:
-                self.point_run(debug=debug, model_id=model_id, data_id=data_id, dir_data=dir_data, dir_output=dir_output)
+                self.point_run(debug=debug, model_id=model_id, data_id=data_id, dir_data=dir_data, dir_output=dir_output, argobj=argobj)

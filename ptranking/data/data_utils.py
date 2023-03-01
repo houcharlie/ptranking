@@ -945,7 +945,7 @@ def load_letor_data_as_libsvm_data(in_file, split_type=None, data_id=None, min_d
 
         perquery_file = get_buffer_file_name(data_id=data_id, file=in_file, data_dict=data_dict, presort=presort)
         list_Qs = iter_queries(in_file=in_file, data_dict=data_dict, scale_data=data_dict['scale_data'],
-                               scaler_id=data_dict['scaler_id'], perquery_file=perquery_file, buffer=True, presort=presort)
+                                scaler_id=data_dict['scaler_id'], perquery_file=perquery_file, buffer=True, presort=presort)
 
         if eval_dict is not None and eval_dict['mask_label'] and split_type==SPLIT_TYPE.Train:
             if MASK_TYPE.rand_mask_rele == MASK_TYPE[eval_dict['mask_type']]:

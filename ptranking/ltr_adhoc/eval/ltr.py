@@ -15,6 +15,7 @@ import tensorflow as tf
 from ptranking.base.ranker import LTRFRAME_TYPE
 from ptranking.metric.metric_utils import metric_results_to_string
 from ptranking.data.data_utils import SPLIT_TYPE, LABEL_TYPE, LETORSampler
+from ptranking.data.MSLR_dataset_filters import filters
 from ptranking.data.data_utils import LTRDataset, YAHOO_LTR, ISTELLA_LTR, MSLETOR_SEMI, MSLETOR_LIST
 from ptranking.ltr_adhoc.eval.parameter import ModelParameter, DataSetting, EvalSetting, ScoringFunctionParameter, ValidationTape, CVTape, SummaryTape, OptLossTape
 
@@ -30,12 +31,15 @@ from ptranking.ltr_adhoc.listwise.st_listnet import STListNet, STListNetParamete
 from ptranking.ltr_adhoc.listwise.lambdaloss import LambdaLoss, LambdaLossParameter
 from ptranking.ltr_adhoc.pretrain.simsiam import SimSiam, SimSiamParameter
 from ptranking.ltr_adhoc.pretrain.simrank import SimRank, SimRankParameter
+from ptranking.ltr_adhoc.pretrain.simclr import SimCLR, SimCLRParameter
+from ptranking.ltr_adhoc.pretrain.simsiam_rank import SimSiamRank, SimSiamRankParameter
 from ptranking.ltr_adhoc.listwise.lambdaranktune import LambdaRankTune, LambdaRankTuneParameter
+from ptranking.ltr_adhoc.pretrain.rankneg import RankNeg, RankNegParameter
 
 LTR_ADHOC_MODEL = [
     'RankMSE', 'RankNet', 'RankCosine', 'ListNet', 'ListMLE', 'STListNet',
     'ApproxNDCG', 'WassRank', 'LambdaRank', 'SoftRank', 'LambdaLoss',
-    'TwinRank', 'SimSiam', 'LambdaRankTune', 'SimRank'
+    'TwinRank', 'SimSiam', 'LambdaRankTune', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg'
 ]
 
 
@@ -224,7 +228,7 @@ class LTREvaluator():
                 'RankNet', 'LambdaRank', 'STListNet', 'ApproxNDCG',
                 'DirectOpt', 'LambdaLoss', 'MarginLambdaLoss', 'MDPRank',
                 'ExpectedUtility', 'MDNExpectedUtility', 'RankingMDN',
-                'SoftRank', 'TwinRank', 'SimSiam', 'LambdaRankTune', 'SimRank'
+                'SoftRank', 'TwinRank', 'SimSiam', 'LambdaRankTune', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg'
         ]:
             ranker = globals()[model_id](sf_para_dict=sf_para_dict,
                                          model_para_dict=model_para_dict,
@@ -404,24 +408,23 @@ class LTREvaluator():
         if argobj.aug_type == 'none':
             eval_dict['dir_output'] = os.path.join(
             eval_dict['dir_output'],
-            'Scratch_{3}_layers{5}_trial{4}/'.format(
-                argobj.aug_type, argobj.aug_percent, argobj.pretrain_lr,
-                argobj.finetune_lr, argobj.trial_num, argobj.layers))
+            'Scratch_{0}_layers{2}_trial{1}_shrink{3}/'.format(
+                argobj.finetune_lr, argobj.trial_num, argobj.layers, argobj.shrink))
         else:
             if argobj.pretrainer == 'SimSiam':
                 eval_dict['dir_output'] = os.path.join(
                     eval_dict['dir_output'],
-                    'SimSiam_{0}{1}_{2}_dim_{5}_layers_{6}_to_finetune_{3}_trial{4}/'.format(
+                    'SimSiam_{0}{1}_{2}_dim_{5}_layers_{6}_to_finetune_{3}_trial{4}_shrink{7}/'.format(
                         argobj.aug_type, argobj.aug_percent, argobj.pretrain_lr,
-                        argobj.finetune_lr, argobj.trial_num, argobj.dim, argobj.layers))
-            elif argobj.pretrainer == 'SimRank':
+                        argobj.finetune_lr, argobj.trial_num, argobj.dim, argobj.layers, argobj.shrink))
+            elif argobj.pretrainer == 'SimRank' or argobj.pretrainer == 'SimCLR' or argobj.pretrainer == 'SimSiamRank' or argobj.pretrainer == 'RankNeg':
                 eval_dict['dir_output'] = os.path.join(
                     eval_dict['dir_output'],
-                    'SimRank_{0}{1}_{2}_dim_{5}_layers_{6}_to_finetune_{3}_temp{7}_mix{8}_trial{4}/'.format(
+                    '{9}_{0}{1}_{2}_dim_{5}_layers_{6}_to_finetune_{3}_temp{7}_mix{8}_trial{4}_shrink{10}_blend{11}_scale{12}_gumbel{13}/'.format(
                         argobj.aug_type, argobj.aug_percent, argobj.pretrain_lr,
-                        argobj.finetune_lr, argobj.trial_num, argobj.dim, argobj.layers, argobj.temperature, argobj.mix))
+                        argobj.finetune_lr, argobj.trial_num, argobj.dim, argobj.layers, argobj.temperature, argobj.mix, argobj.pretrainer, argobj.shrink, argobj.blend, argobj.scale, argobj.gumbel))
             else:
-                raise ValueError('Should be one of SimSiam or SimRank')
+                raise ValueError('Should be one of SimSiam or SimRank or SimCLR or SimSiamRank')
         if not os.path.exists(eval_dict['dir_output']):
             os.makedirs(eval_dict['dir_output'])
         
@@ -432,7 +435,7 @@ class LTREvaluator():
                 model_para_dict['aug_type'] = argobj.aug_type
                 model_para_dict['aug_percent'] = argobj.aug_percent
                 model_para_dict['dim'] = argobj.dim 
-            elif argobj.pretrainer == 'SimRank':
+            elif argobj.pretrainer == 'SimRank' or argobj.pretrainer == 'SimCLR' or argobj.pretrainer == 'SimSiamRank' or argobj.pretrainer == 'RankNeg':
                 sf_para_dict['lr'] = argobj.pretrain_lr
                 sf_para_dict['layers'] = argobj.layers
                 model_para_dict['aug_type'] = argobj.aug_type
@@ -440,12 +443,16 @@ class LTREvaluator():
                 model_para_dict['dim'] = argobj.dim 
                 model_para_dict['temp'] = argobj.temperature
                 model_para_dict['mix'] = argobj.mix
+                model_para_dict['blend'] = argobj.blend
+                model_para_dict['scale'] = argobj.scale
+                model_para_dict['gumbel'] = argobj.gumbel
             else:
                 raise ValueError('Should be one of SimSiam or SimRank')
         else:
             sf_para_dict['lr'] = argobj.finetune_lr
             if argobj.aug_type != 'none':
                 model_para_dict['model_path'] = eval_dict['dir_output']
+        print(eval_dict)
         
     def kfold_cv_eval(self,
                       data_dict=None,
@@ -521,14 +528,26 @@ class LTREvaluator():
                 opt_loss_tape = OptLossTape(gpu=self.gpu)
 
             small_train_set = []
+            original_size = 0
+            original_num_batches = 0
             for batch_ids, batch_q_doc_vectors, batch_std_labels in train_data:
                 small_train_set.append(
                     (batch_ids, batch_q_doc_vectors, batch_std_labels))
+                original_size += len(batch_ids)
+                original_num_batches += 1
+            print('Original train size', original_size, 'Batches', original_num_batches, 'Avg batch size', original_size/original_num_batches)
 
             print(model_id, file=sys.stderr)
-            if model_id != 'SimSiam' and model_id != 'SimRank':
-                print('Shrinking set', file=sys.stderr)
-                small_train_set = small_train_set[:len(small_train_set) // 10]
+            if model_id not in ['SimRank', 'SimSiam', 'SimCLR', 'SimSiamRank', 'RankNeg']:
+                print('Shrinking set by {0}'.format(argobj.shrink), file=sys.stderr)
+                small_train_set = small_train_set[:int(len(small_train_set) * argobj.shrink)]
+            new_size = 0
+            new_num_batches = 0
+            for batch_ids, batch_q_doc_vectors, batch_std_labels in small_train_set:
+                new_size += len(batch_ids)
+                new_num_batches += 1
+            
+            print('New train size', new_size, 'New batches', new_num_batches, 'Avg batch size', new_size/new_num_batches)
             print('Starting training', file=sys.stderr)
             best_metric_val = None
             for epoch_k in range(1, epochs + 1):
@@ -542,7 +561,7 @@ class LTREvaluator():
                         -1).data.cpu().numpy()
                 with summary_writer.as_default():
                     tf.summary.scalar('train loss', train_loss_metric_val, step=epoch_k)
-                if (model_id in ['SimSiam'] and epoch_k % 50 == 0) or model_id not in ['SimSiam', 'SimRank']:
+                if model_id not in ['SimSiam', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg']:
                     train_loss_metric_val = torch_fold_k_epoch_k_loss.squeeze(
                         -1).data.cpu().numpy()
                     torch_train_metric_value = ranker.validation(
@@ -601,33 +620,78 @@ class LTREvaluator():
                     fold_k=fold_k,
                     dir_run=self.dir_run,
                     train_data_length=train_data.__len__())
-            if model_id == 'SimRank':
-                ranker.load(self.dir_run + '/' + '_'.join(['net_params']) +
-                        '.pkl',
-                        device=self.device)
-            else:
+            if model_id not in ['SimSiam', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg']:
                 ranker.load(self.dir_run + '/' + '_'.join(['net_params_best']) +
                             '.pkl',
                             device=self.device)
+            else:
+                ranker.load(self.dir_run + '/' + '_'.join(['net_params']) +
+                        '.pkl',
+                        device=self.device)
+            
             # if do_vali: # using the fold-wise optimal model for later testing based on validation data
             #     ranker.load(modeldir, device=self.device)
             #vali_tape.clear_fold_buffer(fold_k=fold_k)
             # else:            # buffer the model after a fixed number of training-epoches if no validation is deployed
             #     fold_optimal_checkpoint = '-'.join(['Fold', str(fold_k)])
             #     ranker.save(dir=self.dir_run + fold_optimal_checkpoint + '/', name='_'.join(['net_params_epoch', str(epoch_k)]) + '.pkl')
-            if model_id not in ['SimRank', 'SimSiam']:
+            if model_id not in ['SimRank', 'SimSiam', 'SimCLR', 'SimSiamRank', 'RankNeg']:
                 print('Train results')
                 traintape.fold_evaluation(model_id=model_id,
                                         ranker=ranker,
                                         test_data=small_train_set,
                                         max_label=max_label,
                                         fold_k=fold_k)
+                print('Val results')
+                cv_tape.fold_evaluation(model_id=model_id,
+                                        ranker=ranker,
+                                        test_data=vali_data,
+                                        max_label=max_label,
+                                        fold_k=fold_k)
+                
+                print('Overall robust val results')
+                cv_tape.fold_evaluation(model_id=model_id,
+                                    ranker=ranker,
+                                    test_data=vali_data,
+                                    max_label=max_label,
+                                    fold_k=fold_k,
+                                    filters=filters)
+
+                print('Individual robust val results')
+                for curr_filter in filters:
+                    print('Robust dim {0}'.format(curr_filter[0]))
+                    cv_tape.fold_evaluation(model_id=model_id,
+                                        ranker=ranker,
+                                        test_data=vali_data,
+                                        max_label=max_label,
+                                        fold_k=fold_k,
+                                        filters=[curr_filter])
+
                 print('Test results')
                 cv_tape.fold_evaluation(model_id=model_id,
                                         ranker=ranker,
                                         test_data=test_data,
                                         max_label=max_label,
                                         fold_k=fold_k)
+
+                print('Overall robust test results')
+                cv_tape.fold_evaluation(model_id=model_id,
+                                    ranker=ranker,
+                                    test_data=test_data,
+                                    max_label=max_label,
+                                    fold_k=fold_k,
+                                    filters=filters)
+
+                print('Individual robust val results')
+                for curr_filter in filters:
+                    print('Robust dim {0}'.format(curr_filter[0]))
+                    cv_tape.fold_evaluation(model_id=model_id,
+                                        ranker=ranker,
+                                        test_data=test_data,
+                                        max_label=max_label,
+                                        fold_k=fold_k,
+                                        filters=[curr_filter])
+
         print('Tensorboard dir: ' + log_dir, file=sys.stderr)
 
     def naive_train(self, ranker, eval_dict, train_data=None, test_data=None):

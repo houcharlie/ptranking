@@ -12,17 +12,16 @@
   },
 
   "EvalSetting": {
-    "dir_output":"/afs/ece.cmu.edu/usr/charlieh/ptranking_results/",
-    "epochs":600,
+    "dir_output":"/afs/ece.cmu.edu/usr/charlieh/ptranking_results/small_finetune/",
+    "epochs":100,
 
     "do_validation":true,
     "vali_metric": "nDCG",
     "vali_k":5,
     "cutoffs":[1, 3, 5, 10, 20, 50],
-
     "loss_guided":false,
 
-    "do_log":true,
+    "do_log":false,
     "log_step":1,
     "do_summary":false,
 

@@ -12,17 +12,16 @@
   },
 
   "EvalSetting": {
-    "dir_output":"/afs/ece.cmu.edu/usr/charlieh/ptranking_results/simrank_test/",
-    "epochs":100,
+    "dir_output":"/afs/ece.cmu.edu/usr/charlieh/ptranking_results/smaller_batch/",
+    "epochs":150,
 
     "do_validation":true,
     "vali_metric": "nDCG",
     "vali_k":5,
     "cutoffs":[1, 3, 5, 10, 20, 50],
-
     "loss_guided":false,
 
-    "do_log":true,
+    "do_log":false,
     "log_step":20,
     "do_summary":false,
 
