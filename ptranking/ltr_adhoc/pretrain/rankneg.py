@@ -151,6 +151,7 @@ class RankNeg(NeuralRanker):
         @param batch_q_doc_vectors: [batch_size, num_docs, num_features], the latter two dimensions {num_docs, num_features} denote feature vectors associated with the same query.
         @return:
         '''
+        batch_q_doc_vectors = batch_q_doc_vectors[:1,:2,:]
         p1, p2, z1, z2 = self.simsiam_forward(batch_q_doc_vectors)
         target_scores, ssldata_scores = self.rankneg_forward(batch_q_doc_vectors)
         return target_scores, ssldata_scores, p1, p2, z1, z2
@@ -270,6 +271,7 @@ class RankNeg(NeuralRanker):
         logits = logits / self.temperature
 
         loss = self.xent_loss(logits, labels)
+
         return loss
 
     def ranknet_loss_mat(self, batch_preds, batch_std_labels, **kwargs):
@@ -306,7 +308,9 @@ class RankNeg(NeuralRanker):
         # ensuring S_{ij} \in {-1, 0, 1}
         # batch_Sij = torch.clamp(batch_std_diffs, min=-1.0, max=1.0)
         # batch_std_p_ij = 0.5 * (1.0 + batch_Sij)
-        batch_std_p_ij = torch.where(batch_std_diffs > 0., 1., 0.)
+        batch_std_p_ij_pos = torch.where(batch_std_diffs > 0., 1., 0.)
+        batch_std_p_ij_neg = torch.where(batch_std_diffs < 0., -1., 0.)
+        batch_std_p_ij = batch_std_p_ij_pos + batch_std_p_ij_neg
         return batch_p_ij, batch_std_p_ij
 
 

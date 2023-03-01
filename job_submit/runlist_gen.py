@@ -19,17 +19,17 @@
 #     'scale': 0.01,
 #     'gumbel': 0.1
 # }
-simsiam_setting = {
+def_setting = {
     "pretrain_lr": 1e-4,
-    "finetune_lr": 1e-5,
+    "finetune_lr": 1e-4,
     "aug_percent": 0.8,
     "dim": 64,
     "layers": 5,
     "temp": 0.01,
-    'pretrainer': 'SimSiam',
+    'pretrainer': 'RankNeg',
     'mix': 0.25,
     'shrink': 0.0025,
-    'blend': 0.0,
+    'blend': 1.0,
     'scale': 0.5,
     'gumbel': 0.1
 }
@@ -65,10 +65,9 @@ with open('./runlist.txt', 'w+') as f:
     #     new_setting['pretrainer'] = 'RankNeg'
     #     f.write(format_string(new_setting, trial, 'zeroes'))
     for gumbel in [2., 1., 0.5, 0.05, 0.01, 0.001]:
-        for blend in [0., 0.3, 0.5, 0.7, 1.0]:
-            new_setting = simsiam_setting.copy()
-            new_setting['pretrainer'] = 'RankNeg'
-            new_setting['blend'] = blend
+        for aug_percent in [0.3, 0.5, 0.7, 0.8, 0.9, 0.95]:
+            new_setting = def_setting.copy()
+            new_setting['aug_percent'] = aug_percent
             new_setting['gumbel'] = gumbel
             # f.write(format_string(new_setting, 1, 'zeroes'))
             f.write(format_string(new_setting, 2, 'zeroes'))
