@@ -151,7 +151,7 @@ class RankNeg(NeuralRanker):
         @param batch_q_doc_vectors: [batch_size, num_docs, num_features], the latter two dimensions {num_docs, num_features} denote feature vectors associated with the same query.
         @return:
         '''
-        batch_q_doc_vectors = batch_q_doc_vectors[:1,:2,:]
+        # batch_q_doc_vectors = batch_q_doc_vectors[:1,:2,:]
         p1, p2, z1, z2 = self.simsiam_forward(batch_q_doc_vectors)
         target_scores, ssldata_scores = self.rankneg_forward(batch_q_doc_vectors)
         return target_scores, ssldata_scores, p1, p2, z1, z2
