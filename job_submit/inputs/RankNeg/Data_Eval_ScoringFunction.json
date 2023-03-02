@@ -1,7 +1,7 @@
 {
     "DataSetting": {
       "data_id":"MSLRWEB30K",
-      "dir_data":"/afs/ece.cmu.edu/usr/charlieh/MSLR-WEB30K/",
+      "dir_data":"/ocean/projects/iri180031p/houc/datasets/MSLR-WEB30K/",
       "min_docs":[10],
       "min_rele":[1],
       "scaler_id":"StandardScaler",
@@ -12,7 +12,7 @@
     },
   
     "EvalSetting": {
-      "dir_output":"/afs/ece.cmu.edu/usr/charlieh/ptranking_results/smaller_batch/",
+      "dir_output":"/ocean/projects/iri180031p/houc/ranking/MSLR-WEB30K/ssl/",
       "epochs":300,
       "do_validation":true,
       "vali_metric": "nDCG",

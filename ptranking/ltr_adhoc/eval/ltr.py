@@ -10,7 +10,7 @@ import datetime
 import numpy as np
 
 import torch
-import tensorflow as tf
+from torch.utils.tensorboard import SummaryWriter
 
 from ptranking.base.ranker import LTRFRAME_TYPE
 from ptranking.metric.metric_utils import metric_results_to_string
@@ -482,7 +482,7 @@ class LTREvaluator():
 
         current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         log_dir = self.dir_run + current_time
-        summary_writer = tf.summary.create_file_writer(log_dir)
+        summary_writer = SummaryWriter(log_dir)
         print('Tensorboard dir: ' + log_dir, file=sys.stderr)
 
         model_id = model_para_dict['model_id']
@@ -559,8 +559,7 @@ class LTREvaluator():
                 print('epoch', epoch_k, 'train loss', torch_fold_k_epoch_k_loss, file=sys.stderr)
                 train_loss_metric_val = torch_fold_k_epoch_k_loss.squeeze(
                         -1).data.cpu().numpy()
-                with summary_writer.as_default():
-                    tf.summary.scalar('train loss', train_loss_metric_val, step=epoch_k)
+                summary_writer.add_scalar('train loss', train_loss_metric_val, global_step=epoch_k)
                 if model_id not in ['SimSiam', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg']:
                     train_loss_metric_val = torch_fold_k_epoch_k_loss.squeeze(
                         -1).data.cpu().numpy()
@@ -584,11 +583,10 @@ class LTREvaluator():
                         presort=validation_presort)
                     val_ndcg_print = val_train_metric_value.squeeze().data.cpu(
                     ).numpy()
-                    with summary_writer.as_default():
-                        tf.summary.scalar('train_ndcg',
+                    summary_writer.add_scalar('train_ndcg',
                                         train_ndcg_print,
-                                        step=epoch_k)
-                        tf.summary.scalar('val_ndcg', val_ndcg_print, step=epoch_k)
+                                        global_step=epoch_k)
+                    summary_writer.add_scalar('val_ndcg', val_ndcg_print, global_step=epoch_k)
                     print(
                         'Fold {0}   Epoch {1}   Loss {2}  Train {3} Val {4}'
                         .format(fold_k, epoch_k, torch_fold_k_epoch_k_loss,
@@ -599,11 +597,13 @@ class LTREvaluator():
                         best_metric_val = val_ndcg_print
                         ranker.save(dir=self.dir_run + '/',
                                     name='_'.join(['net_params_best']) + '.pkl')
-                    with summary_writer.as_default():
-                        tf.summary.scalar('train_loss',
+                    # with summary_writer.as_default():
+                    #     tf.summary.scalar('train_loss',
+                    #                     train_loss_metric_val,
+                    #                     step=epoch_k)
+                    summary_writer.add_scalar('train_loss',
                                         train_loss_metric_val,
-                                        step=epoch_k)
-
+                                        global_step=epoch_k)
                 ranker.scheduler.step(
                 )  # adaptive learning rate with step_size=40, gamma=0.5
                 
