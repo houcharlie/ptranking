@@ -4,7 +4,10 @@ import json
 import numpy as np
 from itertools import product
 from sklearn.datasets import load_svmlight_file
-
+from ptranking.data.MSLR_dataset_filters import mslr_filters
+from ptranking.data.yahoo1_dataset_filters import set1_filters
+from ptranking.data.set2_dataset_filters import set2_filters
+from ptranking.data.istella_filters import istella_filters
 import lightgbm as lgbm
 from lightgbm import Dataset
 
@@ -47,7 +50,40 @@ class LightGBMLambdaMART():
                 return lightgbm_custom_obj_lambdarank
             else:
                 raise NotImplementedError
+            
 
+    def generate_robust_data(self, filters, batch_q_doc_vectors, group_test, y_test):
+        group_cum = np.cumsum(group_test, dtype=np.int)
+        split_vecs = np.split(batch_q_doc_vectors.toarray(), group_cum, axis=0)[:-1]
+        split_labels = np.split(y_test, group_cum)[:-1]
+        keep_indices = set()
+
+        # split by query group
+        for i, vec in enumerate(split_vecs):
+            for j in range(len(filters)):
+                curridx = filters[j][0]
+                thresholds = filters[j][1]
+                for threshold in thresholds:
+                    direction = threshold[1]
+                    val_threshold = threshold[0]
+                    if direction > 0:
+                        if np.any((vec[:, curridx] > val_threshold).squeeze()):
+                            keep_indices.add(i)
+                    else:
+                        if np.any((vec[:, curridx] < val_threshold).squeeze()):
+                            keep_indices.add(i)
+        index_list = list(keep_indices)
+        robust_vecs = [split_vecs[i] for i in index_list]
+        robust_labels = [split_labels[i] for i in index_list]
+
+        x_robust = np.vstack(robust_vecs)
+        y_robust = np.concatenate(robust_labels)
+        group_robust = group_test[index_list]
+        print('Number of robust test groups', len(index_list))
+
+        return x_robust, group_robust, y_robust
+
+    
     def run(self, fold_k, file_train, file_vali, file_test, argobj, data_dict=None, eval_dict=None, save_model_dir=None):
         """
         Run lambdaMART model based on the specified datasets.
@@ -73,6 +109,7 @@ class LightGBMLambdaMART():
         group_train_full = np.loadtxt(file_train_group)
         group_train = group_train_full[:int(len(group_train_full) * argobj.shrink)]
         train_top_idx = np.sum(group_train)
+        # import ipdb; ipdb.set_trace()
         x_train = x_train_full[:int(train_top_idx),:]
         y_train = y_train_full[:int(train_top_idx)]
         # x_train = x_train_full
@@ -84,7 +121,17 @@ class LightGBMLambdaMART():
         x_test, y_test = load_svmlight_file(file_test_data)
         group_test = np.loadtxt(file_test_group)
         # test_set = Dataset(data=x_test, label=y_test, group=group_test)
-
+        
+        if data_dict['data_id'] == 'MSLRWEB30K':
+            x_test_robust, group_test_robust, y_test_robust = self.generate_robust_data(mslr_filters, x_test, group_test, y_test)
+        elif data_dict['data_id'] == 'Set1':
+            x_test_robust, group_test_robust, y_test_robust = self.generate_robust_data(set1_filters, x_test, group_test, y_test)
+        elif data_dict['data_id'] == 'Set2':
+            x_test_robust, group_test_robust, y_test_robust = self.generate_robust_data(set2_filters, x_test, group_test, y_test)
+        elif data_dict['data_id'] == 'Istella_S':
+            x_test_robust, group_test_robust, y_test_robust = self.generate_robust_data(istella_filters, x_test, group_test, y_test)
+        print('Number of robust samples', y_test_robust.shape)
+        print('Number of samples', y_test.shape)
         if do_validation: # prepare validation dataset if needed
             file_vali_data, file_vali_group=load_letor_data_as_libsvm_data(file_vali, split_type=SPLIT_TYPE.Validation,
                                                 data_dict=data_dict, eval_dict=eval_dict, presort=validation_presort)
@@ -155,8 +202,9 @@ class LightGBMLambdaMART():
             lgbm_ranker.save_model(model_file)
 
         y_pred = lgbm_ranker.predict(x_test)  # fold-wise prediction
+        y_pred_robust = lgbm_ranker.predict(x_test_robust)
 
-        return y_test, group_test, y_pred
+        return y_test, group_test, y_pred, y_test_robust, group_test_robust, y_pred_robust
 
 
 ###### Parameter of LambdaMART ######

@@ -251,7 +251,7 @@ class Evaluator():
                 continue
             if self.gpu: batch_q_doc_vectors = batch_q_doc_vectors.to(self.device)
             batch_preds = self.predict(batch_q_doc_vectors)
-            batch_preds_0 = self.predict(zeroes(batch_q_doc_vectors, 0.6, 'anything'))
+            batch_preds_0 = self.predict(zeroes(batch_q_doc_vectors, 0.6, self.device))
             if self.gpu: batch_preds = batch_preds.cpu(); batch_preds_0 = batch_preds_0.cpu()
 
             _, batch_pred_desc_inds = torch.sort(batch_preds, dim=1, descending=True)
@@ -567,7 +567,7 @@ class NeuralRanker(Evaluator):
         else:
             raise NotImplementedError
 
-        self.scheduler = StepLR(self.optimizer, step_size=20, gamma=0.5)
+        self.scheduler = StepLR(self.optimizer, step_size=20, gamma=0.9)
 
     def eval_mode(self):
         pass

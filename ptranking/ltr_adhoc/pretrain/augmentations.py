@@ -7,7 +7,8 @@ def zeroes(x, aug_percent, device, mix=0., scale=0.):
     Takes x of dimension [batch, num_docs, num_features], and randomly sets some percentage to zero
     """
     aug_x = F.dropout(x.detach().clone(), aug_percent) * (1. - aug_percent)
-    return aug_x
+    noise_aug_x = aug_x + torch.randn_like(aug_x, device=device) * scale
+    return noise_aug_x    
 
 
 def qgswap(x, aug_percent, device, mix=0., scale=0.):

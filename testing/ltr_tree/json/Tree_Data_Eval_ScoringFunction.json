@@ -1,7 +1,7 @@
 {
   "DataSetting": {
-    "data_id":"MSLRWEB30K",
-    "dir_data":"/ocean/projects/iri180031p/houc/datasets/MSLR-WEB30K/",
+    "data_id":"Set2",
+    "dir_data":"/ocean/projects/iri180031p/houc/datasets/yahoo/ltrc_yahoo/",
     "scaler_id":"StandardScaler",
 
     "min_docs":[10],
@@ -14,8 +14,7 @@
   },
 
   "EvalSetting": {
-    "dir_output":"/ocean/projects/iri180031p/houc/ranking/MSLR-WEB30K/GBDT/",
-
+    "dir_output":"/ocean/projects/iri180031p/houc/ranking/istella/sweep/",
     "epochs":100,
 
     "do_validation":true,

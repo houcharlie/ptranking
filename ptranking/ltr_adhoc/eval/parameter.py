@@ -752,6 +752,8 @@ class CVTape(object):
         metric_string = '\n\t'.join(list_metric_strs)
         print("\n{} on Fold - {}\n\t{}".format(model_id, str(fold_k), metric_string))
 
+        return avg_ndcg_at_ks, fold_ndcg_ks
+
     def fold_evaluation_reproduce(self, ranker, test_data, dir_run, max_label, fold_k, model_id, device='cpu'):
         self.dir_run = dir_run
         subdir = '-'.join(['Fold', str(fold_k)])

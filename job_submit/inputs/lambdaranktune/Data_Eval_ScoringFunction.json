@@ -1,7 +1,7 @@
 {
   "DataSetting": {
-    "data_id":"MSLRWEB30K",
-    "dir_data":"/afs/ece.cmu.edu/usr/charlieh/MSLR-WEB30K/",
+    "data_id":"Istella_S",
+    "dir_data":"/ocean/projects/iri180031p/houc/datasets/istella-s-letor/sample/",
     "min_docs":[10],
     "min_rele":[1],
     "scaler_id":"StandardScaler",
@@ -12,7 +12,7 @@
   },
 
   "EvalSetting": {
-    "dir_output":"/afs/ece.cmu.edu/usr/charlieh/ptranking_results/smaller_batch/",
+    "dir_output":"/ocean/projects/iri180031p/houc/ranking/istella/avg/",
     "epochs":300,
 
     "do_validation":true,

@@ -125,6 +125,10 @@ if __name__ == '__main__':
     ''' gumbel '''
     parser.add_argument('-gumbel', type=float, help='Temperature scaling of gumbel noise')
 
+    ''' num negatives '''
+    parser.add_argument('-num_negatives', type=int, help='Number of negatives per qg')
+
+
     argobj = parser.parse_args()
     
     if argobj.pretrainer == 'LightGBMLambdaMART':

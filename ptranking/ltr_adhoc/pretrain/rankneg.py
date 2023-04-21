@@ -39,7 +39,8 @@ class RankNeg(NeuralRanker):
         self.blend = model_para_dict['blend']
         self.scale = model_para_dict['scale']
         self.gumbel = model_para_dict['gumbel']
-        self.num_negatives = 100
+        self.num_negatives = model_para_dict['num_negatives']
+        self.epochs_done = 0
         if self.aug_type == 'zeroes':
             self.augmentation = zeroes
         elif self.aug_type == 'qg':
@@ -145,6 +146,33 @@ class RankNeg(NeuralRanker):
                                      device=self.device)
         return point_sf
 
+
+    def train(self, train_data, epoch_k=None, **kwargs):
+        '''
+        One epoch training using the entire training data
+        '''
+        self.train_mode()
+        assert 'label_type' in kwargs and 'presort' in kwargs
+        label_type, presort = kwargs['label_type'], kwargs['presort']
+        num_queries = 0
+        epoch_loss = torch.tensor([0.0], device=self.device)
+        batches_processed = 0
+        for batch_ids, batch_q_doc_vectors, batch_std_labels in train_data: # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
+            num_queries += len(batch_ids)
+            if self.gpu: batch_q_doc_vectors, batch_std_labels = batch_q_doc_vectors.to(self.device), batch_std_labels.to(self.device)
+
+            batch_loss, stop_training = self.train_op(batch_q_doc_vectors, batch_std_labels, batch_ids=batch_ids, epoch_k=epoch_k, presort=presort, label_type=label_type)
+
+            if stop_training:
+                break
+            else:
+                epoch_loss += batch_loss.item()
+            batches_processed += 1
+        epoch_loss = epoch_loss/num_queries
+        self.epochs_done += 1
+        return epoch_loss, stop_training
+
+
     def forward(self, batch_q_doc_vectors):
         '''
         Forward pass through the scoring function, where each document is scored independently.
@@ -163,11 +191,10 @@ class RankNeg(NeuralRanker):
         @return:
         '''
 
-        x1 = self.augmentation(batch_q_doc_vectors, 0.95,
+        x1 = self.augmentation(batch_q_doc_vectors, 0.98,
                                self.device)
-        x2 = self.augmentation(batch_q_doc_vectors, 0.95,
+        x2 = self.augmentation(batch_q_doc_vectors, 0.98,
                                self.device)
-
         data_dim = batch_q_doc_vectors.shape[2]
         x1_flat = x1.reshape((-1, data_dim))
         x2_flat = x2.reshape((-1, data_dim))
@@ -264,9 +291,8 @@ class RankNeg(NeuralRanker):
 
         # ranknet similarity scores
         preds = source_scores[:,None,:].expand(batch_size, self.num_negatives + 1, num_scores).to(self.device)
-        all_targets = torch.cat([target_scores[:,None,:], sampled_negatives], dim=1).to(self.device)
-        logits = -self.ranknet_loss_mat(preds, all_targets.detach())
-
+        all_targets = torch.cat([target_scores[:,None,:], sampled_negatives.detach()], dim=1).to(self.device)
+        logits = -self.ranknet_loss_mat(preds, all_targets)
         labels = torch.zeros(logits.shape[0], dtype=torch.long).to(self.device)
         logits = logits / self.temperature
 
@@ -401,7 +427,8 @@ class RankNegParameter(ModelParameter):
                               mix=0.5,
                               blend=0.5,
                               scale=0.01,
-                              gumbel=1.0)
+                              gumbel=1.0,
+                              num_negatives=100)
         return self.para_dict
 
     def to_para_string(self, log=False, given_para_dict=None):
@@ -420,7 +447,8 @@ class RankNegParameter(ModelParameter):
             'embed_dim', '{:,g}'.format(para_dict['dim']), 'aug_type',
             para_dict['aug_type'], 'temp', para_dict['temp'], 'mix',
             para_dict['mix'], 'blend', para_dict['blend'], 'scale',
-            para_dict['scale'], 'gumbel', para_dict['gumbel']
+            para_dict['scale'], 'gumbel', para_dict['gumbel'],
+            para_dict['num_negatives'], 'num_negatives'
         ])
         return para_str
 
@@ -437,6 +465,7 @@ class RankNegParameter(ModelParameter):
             choice_blend = self.json_dict['blend']
             choice_scale = self.json_dict['scale']
             choice_gumbel = self.json_dict['gumbel']
+            choice_negatives = self.json_dict['num_negatives']
         else:
             choice_aug = [0.3, 0.7
                           ] if self.debug else [0.7]  # 1.0, 10.0, 50.0, 100.0
@@ -449,11 +478,12 @@ class RankNegParameter(ModelParameter):
             choice_mix = [1., 0.] if self.debug else [1.]
             choice_blend = [1., 0.] if self.debug else [1.]
             choice_scale = [1., 0.] if self.debug else [1.]
-            choice_gumbel = [1., 0.1] if self.debug else[1.]
+            choice_gumbel = [1., 0.1] if self.debug else [1.]
+            choice_negatives = [100, 10] if self.debug else [1]
 
-        for aug_percent, dim, augtype, temp, mix, blend, scale, gumbel in product(
+        for aug_percent, dim, augtype, temp, mix, blend, scale, gumbel, num_negatives in product(
                 choice_aug, choice_dim, choice_augtype, choice_temp,
-                choice_mix, choice_blend, choice_scale, choice_gumbel):
+                choice_mix, choice_blend, choice_scale, choice_gumbel, choice_negatives):
             self.para_dict = dict(model_id=self.model_id,
                                   aug_percent=aug_percent,
                                   dim=dim,
@@ -462,5 +492,6 @@ class RankNegParameter(ModelParameter):
                                   mix=mix,
                                   blend=blend,
                                   scale=scale,
-                                  gumbel=gumbel)
+                                  gumbel=gumbel,
+                                  num_negatives=num_negatives)
             yield self.para_dict
