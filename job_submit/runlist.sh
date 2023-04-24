@@ -1,5 +1,5 @@
 #!/bin/bash
-# script to generate a list of submit files and submit them to condor
+# script to run batch jobs
 EXEC=$1
 runlist=$2
 jobname=$3
@@ -7,30 +7,31 @@ jobname=$3
 
 
 # set up results directory
-dir=$PWD/$jobname/runlist_`date '+%y%m%d_%H.%M.%S'`
+dir=$HOME/runfiles/$jobname/runlist_`date '+%y%m%d_%H.%M.%S'`
 echo "Setting up results directory: $dir"
-mkdir $PWD/$jobname
-mkdir $dir
+mkdir -p -m 777 $dir
 # preamble
-echo "
-Executable = $EXEC
-Requirements = Machine==\"ece017.ece.local.cmu.edu\" || Machine==\"ece018.ece.local.cmu.edu\"   || Machine==\"ece021.ece.local.cmu.edu\" || Machine==\"ece022.ece.local.cmu.edu\" || Machine==\"ece024.ece.local.cmu.edu\"
-Should_Transfer_Files = IF_NEEDED
-When_To_Transfer_Output = ON_EXIT
-Notification = ERROR
-Image_size = 100GB
-Request_gpus = 1
-Request_cpus = 14
-InitialDir = $dir" > $dir/runlist.sub
+
+i=0
 
 while read p; do
+  if [ $i -lt 1 ]
+  then
+    i=$((i+1))
+    continue
+  fi
   echo "$EXEC $p"
-  echo "
-  Arguments = $p
-  Output = process_\$(cluster).\$(process).txt
-  Error = process_\$(cluster).\$(process).err
-  Log = process_\$(cluster).\$(process).log
-  queue" >> $dir/runlist.sub
+  echo "sh $EXEC $p" >> $dir/runlist_$i.sh
+  echo "#!/bin/bash
+#SBATCH -N 1
+#SBATCH -p GPU-shared
+#SBATCH --gpus=1
+#SBATCH -n 5
+#SBATCH -t 48:00:00
+#SBATCH --mem-per-gpu=64G
+#SBATCH -o $dir/output_$i.out
+singularity exec --nv /ocean/projects/iri180031p/houc/images/pytorch-bridges.sif /bin/sh $dir/runlist_$i.sh" >> $dir/runlist_$i.job
+  sbatch $dir/runlist_$i.job 
+  i=$((i+1))
 done <$runlist
 #submit to condor
-condor_submit $dir/runlist.sub

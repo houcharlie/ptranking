@@ -6,5 +6,6 @@
   "mix": [0.5],
   "blend": [0.5],
   "scale": [0.01],
-  "gumbel": [1.0]
+  "gumbel": [1.0],
+  "num_negatives": [110]
 }

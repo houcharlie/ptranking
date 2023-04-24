@@ -220,6 +220,7 @@ class TreeLTREvaluator(LTREvaluator):
             if not os.path.exists(self.save_model_dir):
                 os.makedirs(self.save_model_dir)
 
+
     def kfold_cv_eval(self, data_dict=None, eval_dict=None, model_para_dict=None, argobj=None):
         """
         Evaluation based on k-fold cross validation if multiple folds exist
@@ -231,7 +232,7 @@ class TreeLTREvaluator(LTREvaluator):
         self.display_information(data_dict=data_dict)
         self.setup_eval(data_dict=data_dict, eval_dict=eval_dict)
         model_id, data_id = self.model_parameter.model_id, data_dict['data_id']
-
+        print(model_para_dict)
         fold_num = data_dict['fold_num'] # updated due to the debug mode
         cutoffs, do_validation = eval_dict['cutoffs'], eval_dict['do_validation']
 
@@ -254,10 +255,11 @@ class TreeLTREvaluator(LTREvaluator):
 
             self.update_save_model_dir(data_dict=data_dict, fold_k=fold_k)
 
-            y_test, group_test, y_pred = tree_ranker.run(fold_k=fold_k, file_train=file_train, file_vali=file_vali,
+            y_test, group_test, y_pred, y_test_robust, group_test_robust, y_pred_robust = tree_ranker.run(fold_k=fold_k, file_train=file_train, file_vali=file_vali,
                                                          file_test=file_test, argobj=argobj, data_dict=data_dict, eval_dict=eval_dict,
                                                          save_model_dir=self.save_model_dir)
 
+            print('Full test metrics')
             fold_avg_ndcg_at_ks, fold_avg_nerr_at_ks, fold_avg_ap_at_ks, fold_avg_p_at_ks,\
             list_ndcg_at_ks_per_q, list_err_at_ks_per_q, list_ap_at_ks_per_q, list_p_at_ks_per_q = \
                                     self.cal_metric_at_ks(model_id=model_id, all_std_labels=y_test, all_preds=y_pred,
@@ -287,6 +289,28 @@ class TreeLTREvaluator(LTREvaluator):
             list_all_fold_err_at_ks_per_q.extend(list_err_at_ks_per_q)
             list_all_fold_ap_at_ks_per_q.extend(list_ap_at_ks_per_q)
             list_all_fold_p_at_ks_per_q.extend(list_p_at_ks_per_q)
+
+            print('Robust test metrics')
+            fold_avg_ndcg_at_ks, fold_avg_nerr_at_ks, fold_avg_ap_at_ks, fold_avg_p_at_ks,\
+            list_ndcg_at_ks_per_q, list_err_at_ks_per_q, list_ap_at_ks_per_q, list_p_at_ks_per_q = \
+                                    self.cal_metric_at_ks(model_id=model_id, all_std_labels=y_test_robust, all_preds=y_pred_robust,
+                                                          group=group_test_robust, ks=cutoffs, label_type=data_dict['label_type'])
+
+            performance_list = [model_id] if data_id in YAHOO_LTR or data_id in ISTELLA_LTR else [model_id + ' Fold-' + str(fold_k)]
+
+            for i, co in enumerate(cutoffs):
+                print(fold_avg_ndcg_at_ks)
+                performance_list.append('\nnDCG@{}:{:.4f}'.format(co, fold_avg_ndcg_at_ks[i]))
+            for i, co in enumerate(cutoffs):
+                performance_list.append('\nnERR@{}:{:.4f}'.format(co, fold_avg_nerr_at_ks[i]))
+            for i, co in enumerate(cutoffs):
+                performance_list.append('\nMAP@{}:{:.4f}'.format(co, fold_avg_ap_at_ks[i]))
+            for i, co in enumerate(cutoffs):
+                performance_list.append('\nP@{}:{:.4f}'.format(co, fold_avg_p_at_ks[i]))
+
+            performance_str = '\t'.join(performance_list)
+            print('\n\t', performance_str)
+
 
         time_end = datetime.datetime.now()  # overall timing
         elapsed_time_str = str(time_end - time_begin)
@@ -376,6 +400,7 @@ class TreeLTREvaluator(LTREvaluator):
         for data_dict in self.iterate_data_setting():
             for eval_dict in self.iterate_eval_setting():
                     for model_para_dict in self.iterate_model_setting():
+                        print(model_para_dict)
                         self.kfold_cv_eval(data_dict=data_dict, eval_dict=eval_dict, model_para_dict=model_para_dict, argobj=argobj)
 
     def run(self, debug=False, model_id=None, config_with_json=None, dir_json=None,

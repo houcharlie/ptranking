@@ -20,26 +20,42 @@
 #     'gumbel': 0.1
 # }
 def_setting = {
-    "pretrain_lr": 1e-4,
-    "finetune_lr": 1e-4,
-    "aug_percent": 0.8,
+    "pretrain_lr": 5e-4,
+    "finetune_lr": 1e-5,
+    "aug_percent": 0.5,
     "dim": 64,
     "layers": 5,
     "temp": 0.01,
     'pretrainer': 'RankNeg',
     'mix': 0.25,
-    'shrink': 0.0025,
+    'shrink': 0.001,
     'blend': 1.0,
-    'scale': 0.5,
-    'gumbel': 0.1
+    'scale': 0.,
+    'gumbel': 1.0,
+    'num_negatives': 100
 }
+# def_setting = {
+#     "pretrain_lr": 5e-4,
+#     "finetune_lr": 1e-5,
+#     "aug_percent": 0.5,
+#     "dim": 64,
+#     "layers": 5,
+#     "temp": 0.01,
+#     'pretrainer': 'RankNeg',
+#     'mix': 0.25,
+#     'shrink': 0.01,
+#     'blend': 1.0,
+#     'scale': 0.,
+#     'gumbel': 1.0,
+#     'num_negatives': 100
+# }
 
 def format_string(new_setting, trial, aug):
-    return '{0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13}\n'.format(
+    return '{0} {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14}\n'.format(
         new_setting['pretrain_lr'], new_setting['finetune_lr'], trial, aug,
         new_setting['aug_percent'], new_setting['dim'], new_setting['layers'],
         new_setting['temp'], new_setting['pretrainer'], new_setting['mix'],
-        new_setting['shrink'], new_setting['blend'], new_setting['scale'], new_setting['gumbel'])
+        new_setting['shrink'], new_setting['blend'], new_setting['scale'], new_setting['gumbel'], new_setting['num_negatives'])
 
 
 with open('./runlist.txt', 'w+') as f:
@@ -64,13 +80,124 @@ with open('./runlist.txt', 'w+') as f:
     #     f.write(format_string(new_setting, trial, 'zeroes'))
     #     new_setting['pretrainer'] = 'RankNeg'
     #     f.write(format_string(new_setting, trial, 'zeroes'))
-    for gumbel in [2., 1., 0.5, 0.05, 0.01, 0.001]:
-        for aug_percent in [0.3, 0.5, 0.7, 0.8, 0.9, 0.95]:
-            new_setting = def_setting.copy()
-            new_setting['aug_percent'] = aug_percent
-            new_setting['gumbel'] = gumbel
-            # f.write(format_string(new_setting, 1, 'zeroes'))
-            f.write(format_string(new_setting, 2, 'zeroes'))
+    f.write('\n')
+    # for aug_percent in [0.1, 0.3, 0.5, 0.7, 0.8, 0.9, 0.95]:
+    #     new_setting = def_setting.copy()
+    #     new_setting['pretrainer'] = 'SimSiam'
+    #     new_setting['aug_percent'] = aug_percent
+    #     f.write(format_string(new_setting, 0, 'zeroes'))
+    
+    # for aug_percent in [0.01, 0.05, 0.1, 0.3, 0.5, 0.7]:
+    #     new_setting = def_setting.copy()
+    #     new_setting['pretrainer'] = 'SimCLR'
+    #     new_setting['aug_percent'] = aug_percent
+    #     f.write(format_string(new_setting, 0, 'zeroes'))
+
+    # for aug_percent in [0.1, 0.3, 0.5, 0.7, 0.8, 0.9, 0.95]:
+    #     new_setting = def_setting.copy()
+    #     new_setting['aug_percent'] = aug_percent
+    #     f.write(format_string(new_setting, 0, 'zeroes'))
+    
+    # for finetune_lr in [1e-3, 5e-4, 1e-4, 5e-5]:
+    #     new_setting = def_setting.copy()
+    #     new_setting['finetune_lr'] = finetune_lr
+    #     f.write(format_string(new_setting, 0, 'none'))
+
+    for trial in range(10):
+        new_setting = def_setting.copy()
+        new_setting['pretrainer'] = 'SimSiam'
+        new_setting['aug_percent'] = 0.3
+        f.write(format_string(new_setting, trial, 'zeroes'))
+    
+    for trial in range(10):
+        new_setting = def_setting.copy()
+        new_setting['pretrainer'] = 'SimCLR'
+        new_setting['aug_percent'] = 0.1
+        f.write(format_string(new_setting, trial, 'zeroes'))
+
+    for trial in range(10):
+        new_setting = def_setting.copy()
+        new_setting['aug_percent'] = 0.95
+        f.write(format_string(new_setting, trial, 'zeroes'))
+    
+    for trial in range(10):
+        new_setting = def_setting.copy()
+        new_setting['finetune_lr'] = 1e-3
+        f.write(format_string(new_setting, trial, 'none'))
+
+    for trial in range(10):
+        new_setting = def_setting.copy()
+        new_setting['aug_percent'] = 0.95
+        new_setting['blend'] = 0.2
+        f.write(format_string(new_setting, trial, 'zeroes'))
+    
+    for trial in range(10):
+        new_setting = def_setting.copy()
+        new_setting['aug_percent'] = 0.95
+        new_setting['blend'] = 0.5
+        f.write(format_string(new_setting, trial, 'zeroes'))
+    
+    for trial in range(10):
+        new_setting = def_setting.copy()
+        new_setting['aug_percent'] = 0.95
+        new_setting['blend'] = 0.7
+        f.write(format_string(new_setting, trial, 'zeroes'))
+    
+    # for trial in range(10):
+    #     new_setting = def_setting.copy()
+    #     new_setting['pretrain_lr'] = 5e-4
+    #     new_setting['finetune_lr'] = 1e-5
+    #     new_setting['aug_percent'] = 0.1
+    #     new_setting['pretrainer'] = 'SimCLR'
+    #     f.write(format_string(new_setting, trial, 'zeroes'))
+
+    
+
+    # ndcg_setting = def_setting.copy()
+    # ndcg_setting['aug_percent'] = 0.1
+    # ndcg_setting['gumbel'] = 0.1
+    # ndcg_setting['scale'] = 0.5
+    # for trial in range(20):
+    #     f.write(format_string(ndcg_setting, trial, 'zeroes'))
+    # ndcg_setting = def_setting.copy()
+    # ndcg_setting['aug_percent'] = 0.5
+    # ndcg_setting['gumbel'] = 1.0
+    # ndcg_setting['scale'] = 0.5
+    # for trial in range(20):
+    #     f.write(format_string(ndcg_setting, trial, 'zeroes'))
+
+    # for aug_percent in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
+    #     for scale in [1.0, 0.5, 0.1, 0.]:
+    #         new_setting = def_setting.copy()
+    #         new_setting['aug_percent'] = aug_percent
+    #         new_setting['scale'] = scale
+    #         new_setting['pretrainer'] = 'SimSiam'
+    #         f.write(format_string(new_setting, 0, 'zeroes'))
+
+    # f.write('\n')
+    # settings = [(0.5, 0.5, 200)]
+    # for setting in settings:
+    #     for trial in range(6,11):
+    #         new_setting = def_setting.copy()
+    #         new_setting['aug_percent'] = setting[0]
+    #         new_setting['num_negatives'] = setting[2]
+    #         new_setting['gumbel'] = setting[1]
+    #         f.write(format_string(new_setting, trial, 'zeroes'))
+    # for gumbel in [1.0, 0.5, 0.1, 0.05, 0.01]:
+    #     for aug_percent in [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
+    #         new_setting = def_setting.copy()
+    #         new_setting['aug_percent'] = aug_percent
+    #         new_setting['gumbel'] = gumbel
+    #         # f.write(format_string(new_setting, 1, 'zeroes'))
+    #         f.write(format_string(new_setting, 2, 'zeroes'))
+    
+
+    # for aug_percent in [0.8, 0.9, 0.95]:
+    #     new_setting = def_setting.copy()
+    #     new_setting['aug_percent'] = aug_percent
+    #     new_setting['pretrainer'] = 'SimSiam'
+    #     # f.write(format_string(new_setting, 1, 'zeroes'))
+    #     f.write(format_string(new_setting, 2, 'zeroes'))
 
     # for gumbel in [1., 0.1, 0.01, 0.001]:
     #     new_setting = simsiam_setting.copy()

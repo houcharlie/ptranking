@@ -144,10 +144,17 @@ def get_data_meta(data_id=None):
         has_comment = True
         fold_num = 5
 
-    elif data_id in YAHOO_LTR:
+    elif data_id == 'Set1':
         max_rele_level = 4
         label_type = LABEL_TYPE.MultiLabel
         num_features = 700 # libsvm format, rather than uniform number
+        has_comment = False
+        fold_num = 1
+    
+    elif data_id == 'Set2':
+        max_rele_level = 4
+        label_type = LABEL_TYPE.MultiLabel
+        num_features = 701 # libsvm format, rather than uniform number
         has_comment = False
         fold_num = 1
 
@@ -166,7 +173,7 @@ def get_data_meta(data_id=None):
         if data_id in ['Istella_S', 'Istella']:
             has_comment = False
         else:
-            has_comment = True
+            has_comment = False
     else:
         raise NotImplementedError
 
