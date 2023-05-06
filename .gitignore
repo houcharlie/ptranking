@@ -48,7 +48,7 @@ coverage.xml
 
 # Sphinx documentation
 docs/_build/
-
+outputss.txt
 *simsiam_expts*
 *rankneg_expt*
 *MSLR_val_plots*
