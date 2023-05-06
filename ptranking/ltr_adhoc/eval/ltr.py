@@ -182,7 +182,7 @@ class LTREvaluator():
             data_source=_train_data,
             rough_batch_size=data_dict['train_rough_batch_size'])
         train_loader = torch.utils.data.DataLoader(
-            _train_data, batch_sampler=train_letor_sampler, num_workers=5)
+            _train_data, batch_sampler=train_letor_sampler, num_workers=0)
 
         _test_data = LTRDataset(file=file_test,
                                 split_type=SPLIT_TYPE.Test,
@@ -192,7 +192,7 @@ class LTREvaluator():
             data_source=_test_data,
             rough_batch_size=data_dict['test_rough_batch_size'])
         test_loader = torch.utils.data.DataLoader(
-            _test_data, batch_sampler=test_letor_sampler, num_workers=5)
+            _test_data, batch_sampler=test_letor_sampler, num_workers=0)
 
         if eval_dict['do_validation'] or eval_dict[
                 'do_summary']:  # vali_data is required
@@ -204,7 +204,7 @@ class LTREvaluator():
                 data_source=_vali_data,
                 rough_batch_size=data_dict['validation_rough_batch_size'])
             vali_loader = torch.utils.data.DataLoader(
-                _vali_data, batch_sampler=vali_letor_sampler, num_workers=5)
+                _vali_data, batch_sampler=vali_letor_sampler, num_workers=0)
         else:
             vali_loader = None
 

@@ -80,7 +80,7 @@ with open('./runlist.txt', 'w+') as f:
     #     f.write(format_string(new_setting, trial, 'zeroes'))
     #     new_setting['pretrainer'] = 'RankNeg'
     #     f.write(format_string(new_setting, trial, 'zeroes'))
-    f.write('\n')
+    # f.write('\n')
     # for aug_percent in [0.1, 0.3, 0.5, 0.7, 0.8, 0.9, 0.95]:
     #     new_setting = def_setting.copy()
     #     new_setting['pretrainer'] = 'SimSiam'
@@ -103,45 +103,57 @@ with open('./runlist.txt', 'w+') as f:
     #     new_setting['finetune_lr'] = finetune_lr
     #     f.write(format_string(new_setting, 0, 'none'))
 
-    for trial in range(10):
-        new_setting = def_setting.copy()
-        new_setting['pretrainer'] = 'SimSiam'
-        new_setting['aug_percent'] = 0.3
-        f.write(format_string(new_setting, trial, 'zeroes'))
+    # for aug_percent in [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]:
+    #     new_setting = def_setting.copy()
+    #     new_setting['pretrainer'] = 'SimSiam'
+    #     new_setting['aug_percent'] = aug_percent
+    #     f.write(format_string(new_setting,1, 'zeroes'))
     
-    for trial in range(10):
+    # for aug_percent in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
+    #     new_setting = def_setting.copy()
+    #     new_setting['pretrainer'] = 'RankNeg'
+    #     new_setting['aug_percent'] = aug_percent
+    #     f.write(format_string(new_setting, 1, 'qg'))
+    
+    for trial in range(5):
         new_setting = def_setting.copy()
-        new_setting['pretrainer'] = 'SimCLR'
-        new_setting['aug_percent'] = 0.1
-        f.write(format_string(new_setting, trial, 'zeroes'))
+        new_setting['aug_percent'] = 0.7
+        new_setting['pretrainer'] = 'RankNeg'
+        f.write(format_string(new_setting, trial, 'qg'))
 
-    for trial in range(10):
-        new_setting = def_setting.copy()
-        new_setting['aug_percent'] = 0.95
-        f.write(format_string(new_setting, trial, 'zeroes'))
-    
-    for trial in range(10):
-        new_setting = def_setting.copy()
-        new_setting['finetune_lr'] = 1e-3
-        f.write(format_string(new_setting, trial, 'none'))
+    # for trial in range(10):
+    #     new_setting = def_setting.copy()
+    #     new_setting['pretrainer'] = 'SimCLR'
+    #     new_setting['aug_percent'] = 0.1
+    #     f.write(format_string(new_setting, trial, 'zeroes'))
 
-    for trial in range(10):
-        new_setting = def_setting.copy()
-        new_setting['aug_percent'] = 0.95
-        new_setting['blend'] = 0.2
-        f.write(format_string(new_setting, trial, 'zeroes'))
+    # for trial in range(10):
+    #     new_setting = def_setting.copy()
+    #     new_setting['aug_percent'] = 0.95
+    #     f.write(format_string(new_setting, trial, 'zeroes'))
     
-    for trial in range(10):
-        new_setting = def_setting.copy()
-        new_setting['aug_percent'] = 0.95
-        new_setting['blend'] = 0.5
-        f.write(format_string(new_setting, trial, 'zeroes'))
+    # for trial in range(10):
+    #     new_setting = def_setting.copy()
+    #     new_setting['finetune_lr'] = 1e-3
+    #     f.write(format_string(new_setting, trial, 'none'))
+
+    # for trial in range(10):
+    #     new_setting = def_setting.copy()
+    #     new_setting['aug_percent'] = 0.95
+    #     new_setting['blend'] = 0.2
+    #     f.write(format_string(new_setting, trial, 'zeroes'))
     
-    for trial in range(10):
-        new_setting = def_setting.copy()
-        new_setting['aug_percent'] = 0.95
-        new_setting['blend'] = 0.7
-        f.write(format_string(new_setting, trial, 'zeroes'))
+    # for trial in range(10):
+    #     new_setting = def_setting.copy()
+    #     new_setting['aug_percent'] = 0.95
+    #     new_setting['blend'] = 0.5
+    #     f.write(format_string(new_setting, trial, 'zeroes'))
+    
+    # for trial in range(10):
+    #     new_setting = def_setting.copy()
+    #     new_setting['aug_percent'] = 0.95
+    #     new_setting['blend'] = 0.7
+    #     f.write(format_string(new_setting, trial, 'zeroes'))
     
     # for trial in range(10):
     #     new_setting = def_setting.copy()

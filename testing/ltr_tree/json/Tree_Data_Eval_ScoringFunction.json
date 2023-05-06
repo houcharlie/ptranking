@@ -1,7 +1,7 @@
 {
   "DataSetting": {
-    "data_id":"Set2",
-    "dir_data":"/ocean/projects/iri180031p/houc/datasets/yahoo/ltrc_yahoo/",
+    "data_id":"MSLRWEB30K",
+    "dir_data":"/afs/ece.cmu.edu/usr/charlieh/MSLR-WEB30K/",
     "scaler_id":"StandardScaler",
 
     "min_docs":[10],
@@ -14,7 +14,7 @@
   },
 
   "EvalSetting": {
-    "dir_output":"/ocean/projects/iri180031p/houc/ranking/istella/sweep/",
+    "dir_output":"/afs/ece.cmu.edu/usr/charlieh/ptranking_results/smaller_batch/",
     "epochs":100,
 
     "do_validation":true,

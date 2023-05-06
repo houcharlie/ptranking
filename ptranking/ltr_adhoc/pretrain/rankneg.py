@@ -269,7 +269,7 @@ class RankNeg(NeuralRanker):
         target_scores, source_scores, p1, p2, z1, z2 = batch_preds
         simsiam_loss = -(self.loss(p1, z2).mean() + self.loss(p2, z1).mean()) * 0.5
         rankneg_loss = self.rankneg_loss(target_scores, source_scores)
-        loss = self.blend * rankneg_loss + (1. - self.blend) * simsiam_loss
+        loss = self.blend * rankneg_loss
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()

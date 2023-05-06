@@ -1,0 +1,10 @@
+sh run_gbdt.sh 0.001
+sh run_gbdt.sh 0.001
+sh run_gbdt.sh 0.001
+sh run_gbdt.sh 0.001
+sh run_gbdt.sh 0.001
+sh run_gbdt.sh 0.001
+sh run_gbdt.sh 0.001
+sh run_gbdt.sh 0.001
+sh run_gbdt.sh 0.001
+sh run_gbdt.sh 0.001
