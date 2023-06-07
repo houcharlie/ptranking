@@ -1,7 +1,7 @@
 {
     "DataSetting": {
-        "data_id":"Istella_S",
-        "dir_data":"/ocean/projects/iri180031p/houc/datasets/istella-s-letor/sample/",
+        "data_id":"Set1",
+        "dir_data":"/ocean/projects/cis230033p/houc/datasets/yahoo/ltrc_yahoo/",
         "min_docs":[10],
         "min_rele":[1],
         "scaler_id":"StandardScaler",
@@ -12,8 +12,8 @@
       },
     
       "EvalSetting": {
-        "dir_output":"/ocean/projects/iri180031p/houc/ranking/istella/avg/",
-        "epochs":300,
+        "dir_output":"/ocean/projects/cis230033p/houc/ranking/set1/augmentations/",
+        "epochs":600,
         "do_validation":true,
         "vali_metric": "nDCG",
         "vali_k":5,
@@ -34,13 +34,13 @@
 
   "SFParameter": {
     "sf_id":"pointsf",
-    "opt":["Adam"],
+    "opt":["SGD"],
     "lr":[0.0001],
     "pointsf":{
       "BN":[true],
       "bn_type":["BN"],
       "bn_affine":[true],
-      "layers":[5],
+      "layers":[10],
       "AF":["GE"],
       "TL_AF":["GE"],
       "apply_tl_af":[true],

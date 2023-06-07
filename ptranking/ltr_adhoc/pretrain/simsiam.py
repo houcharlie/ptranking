@@ -7,12 +7,15 @@ import torch.nn as nn
 import os
 import sys
 from itertools import product
-from ptranking.base.utils import get_stacked_FFNet
+from ptranking.base.utils import get_stacked_FFNet, get_resnet
 from ptranking.base.ranker import NeuralRanker
-from ptranking.ltr_adhoc.pretrain.augmentations import zeroes, qgswap, qg_and_zero
+from ptranking.ltr_adhoc.pretrain.augmentations import zeroes, qgswap, qg_and_zero, gaussian
 from ptranking.data.data_utils import LABEL_TYPE
 from ptranking.ltr_adhoc.eval.parameter import ModelParameter
 from absl import logging
+from torch.nn.init import eye_ as eye_init
+from torch.nn.init import zeros_ as zero_init
+from torch.nn.init import xavier_normal_ as nr_init
 class SimSiam(NeuralRanker):
     ''' SimSiam '''
     """
@@ -26,7 +29,7 @@ class SimSiam(NeuralRanker):
     Projector: dim -> dim
     Predictor: dim -> dim/4 -> dim
     """
-    def __init__(self, id='SimSiamPretrainer', sf_para_dict=None, model_para_dict=None, weight_decay=1e-3, gpu=False, device=None):
+    def __init__(self, id='SimSiamPretrainer', sf_para_dict=None, model_para_dict=None, weight_decay=1e-4, gpu=False, device=None):
         super(SimSiam, self).__init__(id=id, sf_para_dict=sf_para_dict, weight_decay=weight_decay, gpu=gpu, device=device)
         self.aug_percent = model_para_dict['aug_percent']
         self.dim = model_para_dict['dim']
@@ -35,8 +38,8 @@ class SimSiam(NeuralRanker):
             self.augmentation = zeroes
         elif self.aug_type == 'qg':
             self.augmentation = qgswap
-        elif self.aug_type == 'qz':
-            self.augmentation = qg_and_zero
+        elif self.aug_type == 'gaussian':
+            self.augmentation = gaussian
 
     def init(self):
         self.point_sf = self.config_point_neural_scoring_function()
@@ -51,27 +54,38 @@ class SimSiam(NeuralRanker):
         return point_sf
 
     def config_heads(self):
-        dim = self.dim
+        # dim = self.dim
         prev_dim = -1
         for name, param in self.point_sf.named_parameters():
             if 'ff' in name and 'bias' not in name:
                 prev_dim = param.shape[0]
-        projector = nn.Sequential(nn.Linear(prev_dim, prev_dim, bias=False),
+        dim = prev_dim
+        nn1 = nn.Linear(prev_dim, prev_dim, bias=False)
+        nn2 = nn.Linear(prev_dim, prev_dim, bias=False)
+        nn3 = nn.Linear(prev_dim, dim, bias=False)
+        nr_init(nn1.weight)
+        nr_init(nn2.weight)
+        nr_init(nn3.weight)
+        projector = nn.Sequential(nn1,
                                   nn.BatchNorm1d(prev_dim),
                                   nn.ReLU(), # first layer
-                                  nn.Linear(prev_dim, prev_dim, bias=False),
+                                  nn2,
                                   nn.BatchNorm1d(prev_dim, affine=False),
-                                  nn.ReLU(inplace=True), # second layer
-                                  nn.Linear(prev_dim, dim, bias=False),
+                                  nn.ReLU(), # second layer
+                                  nn3,
                                   nn.BatchNorm1d(dim, affine=False))
         if self.gpu: projector = projector.to(self.device)
         
-        pred_dim = int(dim // 4)
-        
-        predictor = nn.Sequential(nn.Linear(dim, pred_dim, bias=False),
+        pred_dim = dim // 4
+        nn4 = nn.Linear(dim, pred_dim, bias=False)
+        nn5 = nn.Linear(pred_dim, dim)
+        nr_init(nn4.weight)
+        nr_init(nn5.weight)
+        predictor = nn.Sequential(nn4,
                                     nn.BatchNorm1d(pred_dim),
-                                    nn.ReLU(inplace=True), # hidden layer
-                                    nn.Linear(pred_dim, dim)) # output layer
+                                    nn.ReLU(), # hidden layer
+                                    nn5
+                                    ) # output layer
         if self.gpu: predictor = predictor.to(self.device)
 
         return projector, predictor
@@ -87,7 +101,7 @@ class SimSiam(NeuralRanker):
         
         return nn.ParameterList(all_params)
 
-    def ini_pointsf(self, num_features=None, h_dim=100, out_dim=136, num_layers=3, AF='R', TL_AF='S', apply_tl_af=False,
+    def ini_pointsf(self, num_features=None, h_dim=100, out_dim=100, num_layers=3, AF='R', TL_AF='S', apply_tl_af=False,
                     BN=True, bn_type=None, bn_affine=False, dropout=0.1):
         '''
         Initialization of a feed-forward neural network
@@ -97,9 +111,10 @@ class SimSiam(NeuralRanker):
         for i in range(encoder_layers):
             ff_dims.append(h_dim)
         ff_dims.append(out_dim)
-
-        point_sf = get_stacked_FFNet(ff_dims=ff_dims, AF=AF, TL_AF=TL_AF, apply_tl_af=apply_tl_af, dropout=dropout,
-                                     BN=BN, bn_type=bn_type, bn_affine=bn_affine, device=self.device)
+        h_dim = 100
+        # point_sf = get_stacked_FFNet(ff_dims=ff_dims, AF=AF, TL_AF=TL_AF, apply_tl_af=apply_tl_af, dropout=dropout,
+        #                              BN=BN, bn_type=bn_type, bn_affine=bn_affine, device=self.device)
+        point_sf = get_resnet(num_features, h_dim)
         return point_sf
 
     def forward(self, batch_q_doc_vectors):
@@ -181,6 +196,7 @@ class SimSiam(NeuralRanker):
         # import ipdb; ipdb.set_trace()
         self.optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.point_sf.parameters(), 1.0)
         self.optimizer.step()
         return loss
     
@@ -229,6 +245,45 @@ class SimSiam(NeuralRanker):
         output[0] = val_loss
         output[1] = val_loss
         return output, output, output, output, output
+
+    def train(self, train_data, epoch_k=None, **kwargs):
+        '''
+        One epoch training using the entire training data
+        '''
+        self.train_mode()
+
+        assert 'label_type' in kwargs and 'presort' in kwargs
+        label_type, presort = kwargs['label_type'], kwargs['presort']
+        num_queries = 0
+        epoch_loss = torch.tensor([0.0], device=self.device)
+        batches_processed = 0
+        size_of_train_data = len(train_data)
+        # self.optimizer.zero_grad()
+        
+        
+        for batch_ids, batch_q_doc_vectors, batch_std_labels in train_data: # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
+            num_queries += len(batch_ids)
+            if self.gpu: batch_q_doc_vectors, batch_std_labels = batch_q_doc_vectors.to(self.device), batch_std_labels.to(self.device)
+
+            batch_loss, stop_training = self.train_op(batch_q_doc_vectors, batch_std_labels, batch_ids=batch_ids, epoch_k=epoch_k, presort=presort, label_type=label_type)
+            # loss = batch_loss/float(size_of_train_data)
+            # loss.backward()
+            
+            if stop_training:
+                break
+            else:
+                epoch_loss += batch_loss.item()
+            batches_processed += 1
+        
+        # self.optimizer.step()
+        total_norm = 0.
+        for p in self.point_sf.parameters():
+            param_norm = p.grad.detach().data.norm(2)
+            total_norm += param_norm.item() ** 2
+        total_norm = total_norm ** 0.5
+        print('Curr norm', total_norm, file=sys.stderr)
+        epoch_loss = epoch_loss/batches_processed
+        return epoch_loss, stop_training
 
 ###### Parameter of LambdaRank ######
 

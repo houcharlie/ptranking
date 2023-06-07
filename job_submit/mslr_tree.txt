@@ -1,0 +1,178 @@
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.05, 'num_leaves': 16, 'num_trees': 10, 'num_threads': 16, 'min_data_in_leaf': 5, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+
+Start LightGBMLambdaMART on MSLRWEB30K >>>
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.05, 'num_leaves': 16, 'num_trees': 10, 'num_threads': 16, 'min_data_in_leaf': 5, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+Fold- 1
+Number of robust test groups 51
+Number of robust samples (7778,)
+Number of samples (748937,)
+Training until validation scores don't improve for 20 rounds
+[10]	valid_0's ndcg@5: 0.24894
+Did not meet early stopping. Best iteration is:
+[1]	valid_0's ndcg@5: 0.387719
+Full test metrics
+[0.20727785 0.21023011 0.22025347 0.24845313 0.2957001  0.36052784]
+[0.20727785 0.21023011 0.22025347 0.24845313 0.2957001  0.36052784]
+[0.20727785 0.21023011 0.22025347 0.24845313 0.2957001  0.36052784]
+[0.20727785 0.21023011 0.22025347 0.24845313 0.2957001  0.36052784]
+[0.20727785 0.21023011 0.22025347 0.24845313 0.2957001  0.36052784]
+[0.20727785 0.21023011 0.22025347 0.24845313 0.2957001  0.36052784]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.2073	
+nDCG@3:0.2102	
+nDCG@5:0.2203	
+nDCG@10:0.2485	
+nDCG@20:0.2957	
+nDCG@50:0.3605	
+nERR@1:0.2073	
+nERR@3:0.2864	
+nERR@5:0.3176	
+nERR@10:0.3452	
+nERR@20:0.3516	
+nERR@50:0.3213	
+MAP@1:0.1635	
+MAP@3:0.1479	
+MAP@5:0.1490	
+MAP@10:0.1631	
+MAP@20:0.1816	
+MAP@50:0.2040	
+P@1:0.4542	
+P@3:0.4588	
+P@5:0.4701	
+P@10:0.4935	
+P@20:0.5002	
+P@50:0.4412
+Robust test metrics
+[0.1846872  0.1784637  0.17795013 0.19981824 0.2375272  0.30047023]
+[0.1846872  0.1784637  0.17795013 0.19981824 0.2375272  0.30047023]
+[0.1846872  0.1784637  0.17795013 0.19981824 0.2375272  0.30047023]
+[0.1846872  0.1784637  0.17795013 0.19981824 0.2375272  0.30047023]
+[0.1846872  0.1784637  0.17795013 0.19981824 0.2375272  0.30047023]
+[0.1846872  0.1784637  0.17795013 0.19981824 0.2375272  0.30047023]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.1847	
+nDCG@3:0.1785	
+nDCG@5:0.1780	
+nDCG@10:0.1998	
+nDCG@20:0.2375	
+nDCG@50:0.3005	
+nERR@1:0.1847	
+nERR@3:0.2620	
+nERR@5:0.2877	
+nERR@10:0.3035	
+nERR@20:0.3187	
+nERR@50:0.2917	
+MAP@1:0.1487	
+MAP@3:0.1147	
+MAP@5:0.1061	
+MAP@10:0.1131	
+MAP@20:0.1251	
+MAP@50:0.1498	
+P@1:0.4902	
+P@3:0.4118	
+P@5:0.3882	
+P@10:0.3941	
+P@20:0.3912	
+P@50:0.3549
+Elapsed time:	 0:05:19.802313
+
+
+LightGBMLambdaMART 5-fold cross validation scores: nDCG@1:0.0415, nDCG@3:0.0420, nDCG@5:0.0441, nDCG@10:0.0497, nDCG@20:0.0591, nDCG@50:0.0721
+LightGBMLambdaMART 5-fold cross validation scores: nERR@1:0.0415, nERR@3:0.0573, nERR@5:0.0635, nERR@10:0.0690, nERR@20:0.0703, nERR@50:0.0643
+LightGBMLambdaMART 5-fold cross validation scores: MAP@1:0.0327, MAP@3:0.0296, MAP@5:0.0298, MAP@10:0.0326, MAP@20:0.0363, MAP@50:0.0408
+LightGBMLambdaMART 5-fold cross validation scores: P@1:0.0908, P@3:0.0918, P@5:0.0940, P@10:0.0987, P@20:0.1000, P@50:0.0882
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.05, 'num_leaves': 16, 'num_trees': 10, 'num_threads': 16, 'min_data_in_leaf': 20, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+
+Start LightGBMLambdaMART on MSLRWEB30K >>>
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.05, 'num_leaves': 16, 'num_trees': 10, 'num_threads': 16, 'min_data_in_leaf': 20, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+Fold- 1
+Number of robust test groups 51
+Number of robust samples (7778,)
+Number of samples (748937,)
+Training until validation scores don't improve for 20 rounds
+[10]	valid_0's ndcg@5: 0.237405
+Did not meet early stopping. Best iteration is:
+[1]	valid_0's ndcg@5: 0.316711
+Full test metrics
+[0.20626938 0.20182057 0.20638946 0.22739914 0.26880002 0.34343052]
+[0.20626938 0.20182057 0.20638946 0.22739914 0.26880002 0.34343052]
+[0.20626938 0.20182057 0.20638946 0.22739914 0.26880002 0.34343052]
+[0.20626938 0.20182057 0.20638946 0.22739914 0.26880002 0.34343052]
+[0.20626938 0.20182057 0.20638946 0.22739914 0.26880002 0.34343052]
+[0.20626938 0.20182057 0.20638946 0.22739914 0.26880002 0.34343052]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.2063	
+nDCG@3:0.2018	
+nDCG@5:0.2064	
+nDCG@10:0.2274	
+nDCG@20:0.2688	
+nDCG@50:0.3434	
+nERR@1:0.2063	
+nERR@3:0.2758	
+nERR@5:0.3038	
+nERR@10:0.3306	
+nERR@20:0.3386	
+nERR@50:0.3147	
+MAP@1:0.1655	
+MAP@3:0.1422	
+MAP@5:0.1367	
+MAP@10:0.1454	
+MAP@20:0.1664	
+MAP@50:0.1961	
+P@1:0.4735	
+P@3:0.4436	
+P@5:0.4348	
+P@10:0.4548	
+P@20:0.4801	
+P@50:0.4410
+Robust test metrics
+[0.19533145 0.16227353 0.15465298 0.17660052 0.21392485 0.29277372]
+[0.19533145 0.16227353 0.15465298 0.17660052 0.21392485 0.29277372]
+[0.19533145 0.16227353 0.15465298 0.17660052 0.21392485 0.29277372]
+[0.19533145 0.16227353 0.15465298 0.17660052 0.21392485 0.29277372]
+[0.19533145 0.16227353 0.15465298 0.17660052 0.21392485 0.29277372]
+[0.19533145 0.16227353 0.15465298 0.17660052 0.21392485 0.29277372]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.1953	
+nDCG@3:0.1623	
+nDCG@5:0.1547	
+nDCG@10:0.1766	
+nDCG@20:0.2139	
+nDCG@50:0.2928	
+nERR@1:0.1953	
+nERR@3:0.2332	
+nERR@5:0.2560	
+nERR@10:0.2780	
+nERR@20:0.2903	
+nERR@50:0.2746	
+MAP@1:0.1324	
+MAP@3:0.1112	
+MAP@5:0.0996	
+MAP@10:0.1111	
+MAP@20:0.1264	
+MAP@50:0.1554	
+P@1:0.3922	
+P@3:0.3856	
+P@5:0.3529	
+P@10:0.3941	
+P@20:0.3951	
+P@50:0.3686
+Elapsed time:	 0:02:12.034934
+
+
+LightGBMLambdaMART 5-fold cross validation scores: nDCG@1:0.0413, nDCG@3:0.0404, nDCG@5:0.0413, nDCG@10:0.0455, nDCG@20:0.0538, nDCG@50:0.0687
+LightGBMLambdaMART 5-fold cross validation scores: nERR@1:0.0413, nERR@3:0.0552, nERR@5:0.0608, nERR@10:0.0661, nERR@20:0.0677, nERR@50:0.0629
+LightGBMLambdaMART 5-fold cross validation scores: MAP@1:0.0331, MAP@3:0.0284, MAP@5:0.0273, MAP@10:0.0291, MAP@20:0.0333, MAP@50:0.0392
+LightGBMLambdaMART 5-fold cross validation scores: P@1:0.0947, P@3:0.0887, P@5:0.0870, P@10:0.0910, P@20:0.0960, P@50:0.0882
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.05, 'num_leaves': 16, 'num_trees': 10, 'num_threads': 16, 'min_data_in_leaf': 60, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+
+Start LightGBMLambdaMART on MSLRWEB30K >>>
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.05, 'num_leaves': 16, 'num_trees': 10, 'num_threads': 16, 'min_data_in_leaf': 60, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+Fold- 1
+Number of robust test groups 51
+Number of robust samples (7778,)
+Number of samples (748937,)

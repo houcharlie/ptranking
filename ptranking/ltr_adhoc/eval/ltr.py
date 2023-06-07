@@ -182,7 +182,7 @@ class LTREvaluator():
             data_source=_train_data,
             rough_batch_size=data_dict['train_rough_batch_size'])
         train_loader = torch.utils.data.DataLoader(
-            _train_data, batch_sampler=train_letor_sampler, num_workers=5)
+            _train_data, batch_sampler=train_letor_sampler, num_workers=0)
 
         _test_data = LTRDataset(file=file_test,
                                 split_type=SPLIT_TYPE.Test,
@@ -192,7 +192,7 @@ class LTREvaluator():
             data_source=_test_data,
             rough_batch_size=data_dict['test_rough_batch_size'])
         test_loader = torch.utils.data.DataLoader(
-            _test_data, batch_sampler=test_letor_sampler, num_workers=5)
+            _test_data, batch_sampler=test_letor_sampler, num_workers=0)
 
         if eval_dict['do_validation'] or eval_dict[
                 'do_summary']:  # vali_data is required
@@ -204,7 +204,7 @@ class LTREvaluator():
                 data_source=_vali_data,
                 rough_batch_size=data_dict['validation_rough_batch_size'])
             vali_loader = torch.utils.data.DataLoader(
-                _vali_data, batch_sampler=vali_letor_sampler, num_workers=5)
+                _vali_data, batch_sampler=vali_letor_sampler, num_workers=0)
         else:
             vali_loader = None
 
@@ -455,7 +455,9 @@ class LTREvaluator():
                 raise ValueError('Should be one of SimSiam or SimRank')
         else:
             sf_para_dict['lr'] = argobj.finetune_lr
-            if argobj.aug_type != 'none':
+            model_para_dict['freeze'] = argobj.freeze
+            model_para_dict['probe_layers'] = argobj.probe_layers
+            if argobj.aug_type != 'none' or argobj.freeze:
                 model_para_dict['model_path'] = eval_dict['dir_output']
         print(eval_dict)
         
@@ -601,7 +603,7 @@ class LTREvaluator():
                     if best_metric_val is None or val_ndcg_print > best_metric_val:
                         best_metric_val = val_ndcg_print
                         ranker.save(dir=self.dir_run + '/',
-                                    name='_'.join(['net_params_best']) + '.pkl')
+                                    name='_'.join(['net_params_best', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials)]))
                     # with summary_writer.as_default():
                     #     tf.summary.scalar('train_loss',
                     #                     train_loss_metric_val,
@@ -617,6 +619,9 @@ class LTREvaluator():
                     print('training is failed !')
                     break
             print("Saving in..", self.dir_run, file = sys.stderr)
+            if model_id in ['SimSiam', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg']:
+                ranker.save(dir=self.dir_run + '/',
+                        name='_'.join(['net_params_pretrain']))
             ranker.save(dir=self.dir_run + '/',
                         name='_'.join(['net_params']) + '.pkl')
 
@@ -626,8 +631,7 @@ class LTREvaluator():
                     dir_run=self.dir_run,
                     train_data_length=train_data.__len__())
             if model_id not in ['SimSiam', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg']:
-                ranker.load(self.dir_run + '/' + '_'.join(['net_params_best']) +
-                            '.pkl',
+                ranker.load(self.dir_run + '/' + '_'.join(['net_params_best', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials)]),
                             device=self.device)
             else:
                 ranker.load(self.dir_run + '/' + '_'.join(['net_params']) +
@@ -750,14 +754,8 @@ class LTREvaluator():
                 with open(self.dir_run + 'hparam.pickle', 'wb') as handle:
                     pickle.dump(hparam_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
                 
-                with open(self.dir_run + 'hparam.pickle', 'rb') as handle:
-                    b = pickle.load(handle)
-                print(hparam_dict == b)
-                with open(self.dir_run + 'metrics.pickle', 'wb') as handle:
+                with open(self.dir_run + '_'.join(['metrics', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials)]) + '.pickle', 'wb') as handle:
                     pickle.dump(metrics_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
-                with open(self.dir_run + 'metrics.pickle', 'rb') as handle:
-                    b = pickle.load(handle)
-                print(metrics_dict == b)
 
         print('Tensorboard dir: ' + log_dir, file=sys.stderr)
 

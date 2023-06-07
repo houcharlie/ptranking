@@ -11,7 +11,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 #from torch.nn.init import kaiming_normal_ as nr_init
 from torch.nn.init import xavier_normal_ as nr_init
-
+from torch.nn.init import eye_ as eye_init
+from torch.nn.init import zeros_ as zero_init
 ########
 # Activation function: sigmoid with an explicit sigma.
 ########
@@ -280,6 +281,53 @@ class LTRBatchNorm2(nn.Module):
             Y = Y * self.weight + self.bias
 
         return Y
+    
+class ResNetBlock(nn.Module):
+    def __init__(
+        self,
+        in_dim: int,
+    ) -> None:
+        super().__init__()
+        # Both self.conv1 and self.downsample layers downsample the input when stride != 1
+        self.bn1 = LTRBatchNorm(in_dim, momentum=0.1, affine=True, track_running_stats=False)
+        self.ff1 = nn.Linear(in_dim, in_dim)
+        self.relu = nn.ReLU()
+        self.dropout1 = nn.Dropout(0.1)
+        self.ff2 = nn.Linear(in_dim, in_dim)
+        self.dropout2 = nn.Dropout(0.1)
+
+
+    def forward(self, x):
+        identity = x
+        out = self.bn1(x)
+        out = self.ff1(out)
+        out = self.relu(out)
+        out = self.dropout1(out)
+        out = self.ff2(out)
+        out = self.dropout2(out)
+
+        out += identity
+        return out
+
+
+def get_resnet(data_dim, hidden_dim=130, dropout=0.1):
+    ff_net = nn.Sequential()
+    # ff_net.add_module('_'.join(['dr', 'first']), nn.Dropout(dropout))
+    n_init = nn.Linear(data_dim, hidden_dim, bias=False)
+    ff_net.add_module('_'.join(['input_mapping']), n_init)
+
+    num_layers = 10
+    for i in range(num_layers):
+        # ff_net.add_module('_'.join(['dr', str(i)]), nn.Dropout(dropout))
+        nr_block = ResNetBlock(hidden_dim)
+        # zero_init(nr_block.ff1.bias)
+        # zero_init(nr_block.ff2.bias)
+        ff_net.add_module('_'.join(['resnet', str(i + 1)]), nr_block)
+    ff_net.add_module('_'.join(['bn_resnet']), LTRBatchNorm(hidden_dim, momentum=0.1, affine=True, track_running_stats=False))
+    ff_net.add_module('_'.join(['bn_act']), nn.ReLU())
+    return ff_net
+    
+
 
 ########
 # Stacked Feed-forward Network
@@ -300,7 +348,8 @@ def get_stacked_FFNet(ff_dims=None, AF=None, TL_AF=None, apply_tl_af=False, drop
             prior_dim, ff_i_dim = ff_dims[i - 1], ff_dims[i]
             ff_net.add_module('_'.join(['dr', str(i)]), nn.Dropout(dropout))
             nr_hi = nn.Linear(prior_dim, ff_i_dim)
-            nr_init(nr_hi.weight)
+            eye_init(nr_hi.weight)
+            zero_init(nr_hi.bias)
             ff_net.add_module('_'.join(['ff', str(i + 1)]), nr_hi)
 
             if BN:  # before applying activation
@@ -318,8 +367,8 @@ def get_stacked_FFNet(ff_dims=None, AF=None, TL_AF=None, apply_tl_af=False, drop
     # last layer
     penultimate_dim, out_dim = ff_dims[-2], ff_dims[-1]
     nr_hn = nn.Linear(penultimate_dim, out_dim)
-    nr_init(nr_hn.weight)
-
+    eye_init(nr_hn.weight)
+    zero_init(nr_hn.bias)
     if split_penultimate_layer:
         tail_net = nn.Sequential()
         tail_net.add_module('_'.join(['ff', str(num_layers)]), nr_hn)

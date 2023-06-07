@@ -317,10 +317,10 @@ class TreeLTREvaluator(LTREvaluator):
         print('Elapsed time:\t', elapsed_time_str + "\n")
 
         print()  # begin to print either cv or average performance
-        l2r_cv_avg_ndcg_scores = np.divide(l2r_cv_avg_ndcg_scores, fold_num)
-        l2r_cv_avg_nerr_scores = np.divide(l2r_cv_avg_nerr_scores, fold_num)
-        l2r_cv_avg_ap_scores   = np.divide(l2r_cv_avg_ap_scores, fold_num)
-        l2r_cv_avg_p_scores    = np.divide(l2r_cv_avg_p_scores, fold_num)
+        l2r_cv_avg_ndcg_scores = np.divide(l2r_cv_avg_ndcg_scores, 1)
+        l2r_cv_avg_nerr_scores = np.divide(l2r_cv_avg_nerr_scores, 1)
+        l2r_cv_avg_ap_scores   = np.divide(l2r_cv_avg_ap_scores, 1)
+        l2r_cv_avg_p_scores    = np.divide(l2r_cv_avg_p_scores, 1)
 
         if do_validation:
             eval_prefix = str(fold_num)+'-fold cross validation scores:'

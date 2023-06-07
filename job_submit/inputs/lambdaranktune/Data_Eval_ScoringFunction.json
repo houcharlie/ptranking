@@ -1,7 +1,7 @@
 {
   "DataSetting": {
-    "data_id":"Istella_S",
-    "dir_data":"/ocean/projects/iri180031p/houc/datasets/istella-s-letor/sample/",
+    "data_id":"MSLRWEB30K",
+    "dir_data":"/ocean/projects/cis230033p/houc/datasets/mslr/",
     "min_docs":[10],
     "min_rele":[1],
     "scaler_id":"StandardScaler",
@@ -12,7 +12,7 @@
   },
 
   "EvalSetting": {
-    "dir_output":"/ocean/projects/iri180031p/houc/ranking/istella/avg/",
+    "dir_output":"/ocean/projects/cis230033p/houc/ranking/mslr/avg/",
     "epochs":300,
 
     "do_validation":true,
@@ -40,22 +40,38 @@
       "BN":[true],
       "bn_type":["BN"],
       "bn_affine":[true],
-      "layers":[5],
+      "layers":[10],
       "AF":["GE"],
       "TL_AF":["GE"],
       "apply_tl_af":[true]
     },
-    "listsf":{
-      "BN":[true],
-      "bn_type":["BN2"],
-      "bn_affine":[false],
-      "RD":[false],
-      "apply_tl_af":[false],
-      "AF":["R"],
-      "ff_dims":[128, 256, 512],
-      "encoder_type":["DASALC"],
-      "encoder_layers":[3],
-      "n_heads":[2]
+  
+    "SFParameter": {
+      "sf_id":"pointsf",
+      "opt":["Adam"],
+      "lr":[0.0001],
+      "pointsf":{
+        "BN":[true],
+        "bn_type":["BN"],
+        "bn_affine":[true],
+        "layers":[5],
+        "AF":["GE"],
+        "TL_AF":["GE"],
+        "apply_tl_af":[true],
+        "out_dim":[136]
+      },
+      "listsf":{
+        "BN":[true],
+        "bn_type":["BN2"],
+        "bn_affine":[false],
+        "RD":[false],
+        "apply_tl_af":[false],
+        "AF":["R"],
+        "ff_dims":[128, 256, 512],
+        "encoder_type":["DASALC"],
+        "encoder_layers":[3],
+        "n_heads":[2]
+      }
     }
   }
-}
+  

@@ -7,7 +7,7 @@ jobname=$3
 
 
 # set up results directory
-dir=$HOME/runfiles/$jobname/runlist_`date '+%y%m%d_%H.%M.%S'`
+dir=/jet/home/houc/ptranking/job_submit/$jobname/runlist_`date '+%y%m%d_%H.%M.%S'`
 echo "Setting up results directory: $dir"
 mkdir -p -m 777 $dir
 # preamble
@@ -30,7 +30,7 @@ while read p; do
 #SBATCH -t 48:00:00
 #SBATCH --mem-per-gpu=64G
 #SBATCH -o $dir/output_$i.out
-singularity exec --nv /ocean/projects/iri180031p/houc/images/pytorch-bridges.sif /bin/sh $dir/runlist_$i.sh" >> $dir/runlist_$i.job
+singularity exec --nv /ocean/projects/cis230033p/houc/images/ptdist.sif /bin/sh $dir/runlist_$i.sh" >> $dir/runlist_$i.job
   sbatch $dir/runlist_$i.job 
   i=$((i+1))
 done <$runlist

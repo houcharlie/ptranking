@@ -6,16 +6,19 @@ import torch
 import torch.nn as nn
 import os
 import sys
+import math
 from itertools import product
 from ptranking.base.utils import get_stacked_FFNet
 from ptranking.base.ranker import NeuralRanker
-from ptranking.ltr_adhoc.pretrain.augmentations import zeroes, qgswap, qg_and_zero
+from ptranking.ltr_adhoc.pretrain.augmentations import zeroes, qgswap, gaussian
 from ptranking.data.data_utils import LABEL_TYPE
 from ptranking.ltr_adhoc.eval.parameter import ModelParameter
+from ptranking.ltr_adhoc.util.lambda_utils import get_pairwise_comp_probs
 from absl import logging
 import torch.nn.functional as F
-
-
+from ptranking.metric.metric_utils import get_delta_ndcg
+from torch.nn.init import eye_ as eye_init
+from torch.nn.init import zeros_ as zero_init
 
 class RankNeg(NeuralRanker):
 
@@ -41,21 +44,25 @@ class RankNeg(NeuralRanker):
         self.gumbel = model_para_dict['gumbel']
         self.num_negatives = model_para_dict['num_negatives']
         self.epochs_done = 0
+        self.loss = nn.CosineSimilarity(dim=1).to(self.device)
+
         if self.aug_type == 'zeroes':
             self.augmentation = zeroes
         elif self.aug_type == 'qg':
             self.augmentation = qgswap
-        elif self.aug_type == 'qz':
-            self.augmentation = qg_and_zero
+        elif self.aug_type == 'gaussian':
+            self.augmentation = gaussian
 
     def init(self):
         self.point_sf = self.config_point_neural_scoring_function()
-        self.projector, self.predictor, self.rankneg_proj, self.rankneg_scorer = self.config_heads()
+        # self.projector, self.predictor, self.rankneg_proj, self.rankneg_scorer = self.config_heads()
+        self.point_sf = self.config_heads()
         self.xent_loss = torch.nn.CrossEntropyLoss().to(self.device)
-        self.loss = nn.CosineSimilarity(dim=1).to(self.device)
+        # self.loss = nn.CosineSimilarity(dim=1).to(self.device)
 
         self.config_optimizer()
-
+    def get_parameters(self):
+        return self.point_sf.parameters()
     def config_point_neural_scoring_function(self):
         point_sf = self.ini_pointsf(
             **self.sf_para_dict[self.sf_para_dict['sf_id']])
@@ -68,51 +75,73 @@ class RankNeg(NeuralRanker):
         for name, param in self.point_sf.named_parameters():
             if 'ff' in name and 'bias' not in name:
                 prev_dim = param.shape[0]
-        projector = nn.Sequential(
-            nn.Linear(prev_dim, prev_dim, bias=False),
-            nn.BatchNorm1d(prev_dim),
-            nn.ReLU(),  # first layer
-            nn.Linear(prev_dim, prev_dim, bias=False),
-            nn.BatchNorm1d(prev_dim, affine=False),
-            nn.ReLU(inplace=True),  # second layer
-            nn.Linear(prev_dim, dim, bias=False),
-            nn.BatchNorm1d(dim, affine=False))
-        if self.gpu: projector = projector.to(self.device)
+        # projector = nn.Sequential(
+        #     nn.Linear(prev_dim, prev_dim, bias=False),
+        #     nn.BatchNorm1d(prev_dim),
+        #     nn.ReLU(),  # first layer
+        #     nn.Linear(prev_dim, prev_dim, bias=False),
+        #     nn.BatchNorm1d(prev_dim, affine=False),
+        #     nn.ReLU(inplace=True),  # second layer
+        #     nn.Linear(prev_dim, dim, bias=False),
+        #     nn.BatchNorm1d(dim, affine=False))
+        # if self.gpu: projector = projector.to(self.device)
 
-        pred_dim = int(dim // 4)
+        # pred_dim = int(dim // 4)
 
-        predictor = nn.Sequential(
-            nn.Linear(dim, pred_dim, bias=False),
-            nn.BatchNorm1d(pred_dim),
-            nn.ReLU(inplace=True),  # hidden layer
-            nn.Linear(pred_dim, dim))  # output layer
-        if self.gpu: predictor = predictor.to(self.device)
+        # predictor = nn.Sequential(
+        #     nn.Linear(dim, pred_dim, bias=False),
+        #     nn.BatchNorm1d(pred_dim),
+        #     nn.ReLU(inplace=True),  # hidden layer
+        #     nn.Linear(pred_dim, dim))  # output layer
+        # if self.gpu: predictor = predictor.to(self.device)
+        for i in range(4):
+            nr_hn = nn.Linear(prev_dim, prev_dim)
+            eye_init(nr_hn.weight)
+            zero_init(nr_hn.bias)
+            self.point_sf.add_module('_'.join(['ff', 'scoring', str(i)]), nr_hn)
+            self.point_sf.add_module('_'.join(['ff', 'scoring', str(i), 'RELU']), nn.ReLU())
+        
+        nr_hn = nn.Linear(prev_dim, 1)
+        eye_init(nr_hn.weight)
+        zero_init(nr_hn.bias)
+        self.point_sf.add_module('_'.join(['ff', 'scoring', 'final']), nr_hn)
+        # simclr_projector = nn.Sequential(nn1,
+        #                 nn.ReLU(), # first layer
+        #                 nn2,
+        #                 nn.ReLU(),
+        #                 nn3,
+        #                 nn.ReLU(),
+        #                 nn4,
+        #                 nn.ReLU(),
+        #                 nn5,
+        #                 nn.ReLU())
+        # if self.gpu: simclr_projector = simclr_projector.to(self.device)
+        
 
-        simclr_projector = nn.Sequential(nn.Linear(prev_dim, prev_dim),
-                        nn.ReLU(), # first layer
-                        nn.Linear(prev_dim, dim),
-                        nn.ReLU())
-        if self.gpu: simclr_projector = simclr_projector.to(self.device)
 
-        scorer = nn.Linear(dim, 1)
-        if self.gpu: scorer = scorer.to(self.device)
+        # scorer = nn.Linear(dim, 1)
+        # eye_init(scorer.weight)
+        # zero_init(scorer.bias)
+        # if self.gpu: scorer = scorer.to(self.device)
 
-        return projector, predictor, simclr_projector, scorer
+        # return projector, predictor, simclr_projector, scorer
+        self.point_sf.to(self.device)
+        return self.point_sf
 
-    def get_parameters(self):
-        all_params = []
-        for param in self.point_sf.parameters():
-            all_params.append(param)
-        for param in self.projector.parameters():
-            all_params.append(param)
-        for param in self.predictor.parameters():
-            all_params.append(param)
-        for param in self.rankneg_proj.parameters():
-            all_params.append(param)
-        for param in self.rankneg_scorer.parameters():
-            all_params.append(param)
+    # def get_parameters(self):
+    #     all_params = []
+    #     for param in self.point_sf.parameters():
+    #         all_params.append(param)
+    #     # for param in self.projector.parameters():
+    #     #     all_params.append(param)
+    #     # for param in self.predictor.parameters():
+    #     #     all_params.append(param)
+    #     for param in self.rankneg_proj.parameters():
+    #         all_params.append(param)
+    #     for param in self.rankneg_scorer.parameters():
+    #         all_params.append(param)
 
-        return nn.ParameterList(all_params)
+    #     return nn.ParameterList(all_params)
 
     def ini_pointsf(self,
                     num_features=None,
@@ -156,19 +185,22 @@ class RankNeg(NeuralRanker):
         label_type, presort = kwargs['label_type'], kwargs['presort']
         num_queries = 0
         epoch_loss = torch.tensor([0.0], device=self.device)
+        epoch_spread = 0.
         batches_processed = 0
         for batch_ids, batch_q_doc_vectors, batch_std_labels in train_data: # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
             num_queries += len(batch_ids)
             if self.gpu: batch_q_doc_vectors, batch_std_labels = batch_q_doc_vectors.to(self.device), batch_std_labels.to(self.device)
 
-            batch_loss, stop_training = self.train_op(batch_q_doc_vectors, batch_std_labels, batch_ids=batch_ids, epoch_k=epoch_k, presort=presort, label_type=label_type)
+            (batch_loss, score_spread), stop_training = self.train_op(batch_q_doc_vectors, batch_std_labels, batch_ids=batch_ids, epoch_k=epoch_k, presort=presort, label_type=label_type)
 
             if stop_training:
                 break
             else:
                 epoch_loss += batch_loss.item()
+                epoch_spread += score_spread
             batches_processed += 1
         epoch_loss = epoch_loss/num_queries
+        print('Epoch spread', epoch_spread/batches_processed, file=sys.stderr)
         self.epochs_done += 1
         return epoch_loss, stop_training
 
@@ -180,50 +212,49 @@ class RankNeg(NeuralRanker):
         @return:
         '''
         # batch_q_doc_vectors = batch_q_doc_vectors[:1,:2,:]
-        p1, p2, z1, z2 = self.simsiam_forward(batch_q_doc_vectors)
+        # p1, p2, z1, z2 = self.simsiam_forward(batch_q_doc_vectors)
         target_scores, ssldata_scores = self.rankneg_forward(batch_q_doc_vectors)
-        return target_scores, ssldata_scores, p1, p2, z1, z2
+        return target_scores, ssldata_scores
+        # return target_scores, ssldata_scores, p1, p2, z1, z2
 
-    def simsiam_forward(self, batch_q_doc_vectors):
-        '''
-        Forward pass through the scoring function, where each document is scored independently.
-        @param batch_q_doc_vectors: [batch_size, num_docs, num_features], the latter two dimensions {num_docs, num_features} denote feature vectors associated with the same query.
-        @return:
-        '''
+    # def simsiam_forward(self, batch_q_doc_vectors):
+    #     '''
+    #     Forward pass through the scoring function, where each document is scored independently.
+    #     @param batch_q_doc_vectors: [batch_size, num_docs, num_features], the latter two dimensions {num_docs, num_features} denote feature vectors associated with the same query.
+    #     @return:
+    #     '''
 
-        x1 = self.augmentation(batch_q_doc_vectors, 0.98,
-                               self.device)
-        x2 = self.augmentation(batch_q_doc_vectors, 0.98,
-                               self.device)
-        data_dim = batch_q_doc_vectors.shape[2]
-        x1_flat = x1.reshape((-1, data_dim))
-        x2_flat = x2.reshape((-1, data_dim))
-        mod1 = self.point_sf(x1_flat)
-        mod2 = self.point_sf(x2_flat)
-        z1 = self.projector(mod1)
-        z2 = self.projector(mod2)
-        p1 = self.predictor(z1)
-        p2 = self.predictor(z2)
+    #     x1 = self.augmentation(batch_q_doc_vectors, 0.98,
+    #                            self.device)
+    #     x2 = self.augmentation(batch_q_doc_vectors, 0.98,
+    #                            self.device)
+    #     data_dim = batch_q_doc_vectors.shape[2]
+    #     x1_flat = x1.reshape((-1, data_dim))
+    #     x2_flat = x2.reshape((-1, data_dim))
+    #     mod1 = self.point_sf(x1_flat)
+    #     mod2 = self.point_sf(x2_flat)
+    #     z1 = self.projector(mod1)
+    #     z2 = self.projector(mod2)
+    #     p1 = self.predictor(z1)
+    #     p2 = self.predictor(z2)
 
-        return p1, p2, z1.detach(), z2.detach()
+    #     return p1, p2, z1.detach(), z2.detach()
 
     def rankneg_forward(self, batch_q_doc_vectors):
         batch_size, num_docs, num_features = batch_q_doc_vectors.size()
         target = batch_q_doc_vectors
         ssldata = self.augmentation(batch_q_doc_vectors,
                                self.aug_percent,
-                               self.device,
-                               mix=self.mix,
-                               scale=self.scale)
+                               self.device)
         # embeddings
-        target_embed = self.point_sf(target)
-        ssldata_embed = self.point_sf(ssldata)
+        _target_scores = self.point_sf(target)
+        _ssldata_scores= self.point_sf(ssldata)
 
         # rankneg forward
-        target_z = self.rankneg_proj(target_embed)
-        ssldata_z = self.rankneg_proj(ssldata_embed)
-        _target_scores = self.rankneg_scorer(target_z)
-        _ssldata_scores = self.rankneg_scorer(ssldata_z)
+        # target_z = self.rankneg_proj(target_embed)
+        # ssldata_z = self.rankneg_proj(ssldata_embed)
+        # _target_scores = self.rankneg_scorer(target_z)
+        # _ssldata_scores = self.rankneg_scorer(ssldata_z)
 
         target_scores = _target_scores.view(-1, num_docs)  # [batch_size, num_docs]
         ssldata_scores = _ssldata_scores.view(-1, num_docs)  # [batch_size, num_docs]
@@ -231,19 +262,13 @@ class RankNeg(NeuralRanker):
         return target_scores, ssldata_scores
 
 
-    def eval_mode(self):
-        self.point_sf.eval()
-        self.projector.eval()
-        self.predictor.eval()
-        self.rankneg_proj.eval()
-        self.rankneg_scorer.eval()
+    # def eval_mode(self):
+    #     self.point_sf.eval()
+    #     # self.projector.eval()
+    #     # self.predictor.eval()
 
-    def train_mode(self):
-        self.point_sf.train(mode=True)
-        self.projector.train(mode=True)
-        self.predictor.train(mode=True)
-        self.rankneg_proj.train(mode=True)
-        self.rankneg_scorer.train(mode=True)
+    # def train_mode(self):
+    #     self.point_sf.train(mode=True)
 
     def save(self, dir, name):
         if not os.path.exists(dir):
@@ -256,6 +281,7 @@ class RankNeg(NeuralRanker):
         self.point_sf.load_state_dict(
             torch.load(file_model, map_location=device))
 
+    
     def get_tl_af(self):
         return self.sf_para_dict[self.sf_para_dict['sf_id']]['TL_AF']
 
@@ -266,16 +292,25 @@ class RankNeg(NeuralRanker):
         @param kwargs:
         @return:
         '''
-        target_scores, source_scores, p1, p2, z1, z2 = batch_preds
-        simsiam_loss = -(self.loss(p1, z2).mean() + self.loss(p2, z1).mean()) * 0.5
-        rankneg_loss = self.rankneg_loss(target_scores, source_scores)
-        loss = self.blend * rankneg_loss + (1. - self.blend) * simsiam_loss
+        # target_scores, source_scores, p1, p2, z1, z2 = batch_preds
+        target_scores, source_scores = batch_preds
+
+        score_spread = torch.std(target_scores.detach(), dim=1)
+        score_spread_mean = torch.mean(score_spread.squeeze().detach())
+        # simsiam_loss = -(self.loss(p1, z2).mean() + self.loss(p2, z1).mean()) * 0.5
+        # rankneg_loss = self.rankneg_loss(target_scores, source_scores)
+        shifted_scores = target_scores[1:,:]
+        shifted_scores = torch.cat((shifted_scores, target_scores[0,:][None,:]), dim=0)
+        lambda_loss = self.ranknet_loss(target_scores.detach(), source_scores) - 1e-3 * self.ranknet_loss(shifted_scores.detach(), source_scores)
+        # sep_loss = self.sep_loss(source_scores)
+        loss = lambda_loss
+        # loss = self.blend * rankneg_loss
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        return loss
+        return loss, score_spread_mean
 
-    def rankneg_loss(self, target_scores, source_scores):
+    def rankneg_loss(self, target_scores, source_scores, score_spread):
         '''
         target scores: [batch_size, num_docs]
         source scores: [batch_size, num_docs]
@@ -284,14 +319,15 @@ class RankNeg(NeuralRanker):
         batch_size = target_scores.shape[0]
         num_scores = target_scores.shape[1]
 
+        scale = (score_spread * math.sqrt(6.)/math.pi) * self.gumbel
         target_scores_expanded = target_scores[:, None, :].expand((batch_size, self.num_negatives, num_scores))
         gumbels = -torch.empty_like(target_scores_expanded).exponential_().log()
-        sampled_negatives = target_scores_expanded + self.gumbel * gumbels
+        sampled_negatives = target_scores_expanded + scale * gumbels
 
 
         # ranknet similarity scores
         preds = source_scores[:,None,:].expand(batch_size, self.num_negatives + 1, num_scores).to(self.device)
-        all_targets = torch.cat([target_scores[:,None,:], sampled_negatives.detach()], dim=1).to(self.device)
+        all_targets = torch.cat([target_scores[:,None,:], sampled_negatives], dim=1).to(self.device)
         logits = -self.ranknet_loss_mat(preds, all_targets)
         labels = torch.zeros(logits.shape[0], dtype=torch.long).to(self.device)
         logits = logits / self.temperature
@@ -299,6 +335,91 @@ class RankNeg(NeuralRanker):
         loss = self.xent_loss(logits, labels)
 
         return loss
+    
+    def ranknet_loss(self, target_scores, source_scores, **kwargs):
+        '''
+        @param batch_preds: [batch, ranking_size] each row represents the relevance predictions for documents associated with the same query
+        @param batch_std_labels: [batch, ranking_size] each row represents the standard relevance grades for documents associated with the same query
+        @param kwargs:
+        @return:
+        '''
+        # assert 'label_type' in kwargs and LABEL_TYPE.MultiLabel == kwargs['label_type']
+
+        # assert 'presort' in kwargs and kwargs['presort'] is True  # aiming for direct usage of ideal ranking
+
+        # kwargs['presort'] = True
+        # kwargs['label_type'] = LABEL_TYPE.MultiLabel
+        # label_type = kwargs['label_type']
+        # ranking_size = target_scores.shape[1]
+        # batch_size = target_scores.shape[0]
+        # target_scores_batch_mins = torch.amin(target_scores, dim=1)[:, None]
+        # target_scores_pos = target_scores - torch.min(target_scores_batch_mins, torch.tensor([0.]).to(self.device)) 
+        # target_scores_batch_maxes = torch.amax(target_scores_pos, dim=1)[:,None]
+        # target_scores_scaled = torch.round(target_scores_pos/target_scores_batch_maxes * 4.0)
+        # # sort documents according to target ranking
+        # # batch_targets is still soft rankings
+        # batch_targets, batch_target_inds = torch.sort(target_scores_scaled, dim=1, descending=True)
+
+        # # preds according to target ranking
+        # batch_preds = torch.gather(source_scores, dim=1, index=batch_target_inds)
+
+        # # sort preds according to predicted relevance
+        # batch_descending_preds, batch_pred_desc_inds = torch.sort(batch_preds, dim=1, descending=True)
+        # batch_predict_rankings = torch.gather(batch_targets, dim=1, index=batch_pred_desc_inds)
+
+        batch_p_ij, batch_std_p_ij = self.get_pairwise_comp_probs_hard(batch_preds=source_scores,
+                                                             batch_std_labels=target_scores,
+                                                             sigma=1.)
+
+        # batch_delta_ndcg = get_delta_ndcg(batch_ideal_rankings=batch_targets,
+        #                                   batch_predict_rankings=batch_predict_rankings,
+        #                                   label_type=label_type, device=self.device)
+
+        _batch_loss = F.binary_cross_entropy(input=torch.triu(batch_p_ij, diagonal=1),
+                                             target=torch.triu(batch_std_p_ij, diagonal=1), reduction='none')
+
+        batch_loss = torch.sum(torch.sum(_batch_loss, dim=(2, 1)))
+
+        return batch_loss
+    def get_pairwise_comp_probs_soft(self, batch_preds, batch_std_labels, sigma=None):
+        '''
+        Get the predicted and standard probabilities p_ij which denotes d_i beats d_j
+        @param batch_preds:
+        @param batch_std_labels:
+        @param sigma:
+        @return:
+        '''
+        # computing pairwise differences w.r.t. predictions, i.e., s_i - s_j
+        batch_s_ij = torch.unsqueeze(batch_preds, dim=2) - torch.unsqueeze(batch_preds, dim=1)
+        batch_p_ij = torch.sigmoid(sigma * batch_s_ij)
+
+        # computing pairwise differences w.r.t. standard labels, i.e., S_{ij}
+        batch_std_diffs = torch.unsqueeze(batch_std_labels, dim=2) - torch.unsqueeze(batch_std_labels, dim=1)
+        batch_std_p_ij = torch.sigmoid(sigma*batch_std_diffs)
+        return batch_p_ij, batch_std_p_ij
+    def get_pairwise_comp_probs_hard(self, batch_preds, batch_std_labels, sigma=None):
+        '''
+        Get the predicted and standard probabilities p_ij which denotes d_i beats d_j
+        @param batch_preds:
+        @param batch_std_labels:
+        @param sigma:
+        @return:
+        '''
+        # computing pairwise differences w.r.t. predictions, i.e., s_i - s_j
+        batch_s_ij = torch.unsqueeze(batch_preds, dim=2) - torch.unsqueeze(batch_preds, dim=1)
+        batch_p_ij = torch.sigmoid(sigma * batch_s_ij)
+
+        # computing pairwise differences w.r.t. standard labels, i.e., S_{ij}
+        batch_std_diffs = torch.unsqueeze(batch_std_labels, dim=2) - torch.unsqueeze(batch_std_labels, dim=1)
+        # ensuring S_{ij} \in {-1, 0, 1}
+        # batch_Sij = torch.clamp(batch_std_diffs, min=-1.0, max=1.0)
+        # batch_std_p_ij = 0.5 * (1.0 + batch_Sij)
+        batch_std_p_ij_pos = torch.where(batch_std_diffs > 0., 1., 0.)
+        batch_std_p_ij_neg = torch.where(batch_std_diffs < 0., -1., 0.)
+        batch_Sij= batch_std_p_ij_pos + batch_std_p_ij_neg
+        batch_std_p_ij = 0.5 * (1.0 + batch_Sij)
+        return batch_p_ij, batch_std_p_ij
+
 
     def ranknet_loss_mat(self, batch_preds, batch_std_labels, **kwargs):
         '''
@@ -338,6 +459,23 @@ class RankNeg(NeuralRanker):
         batch_std_p_ij_neg = torch.where(batch_std_diffs < 0., -1., 0.)
         batch_std_p_ij = batch_std_p_ij_pos + batch_std_p_ij_neg
         return batch_p_ij, batch_std_p_ij
+    
+    def get_pairwise_comp_probs_soft_mat(self, batch_preds, batch_std_labels, sigma=None):
+        '''
+        Get the predicted and standard probabilities p_ij which denotes d_i beats d_j
+        @param batch_preds:
+        @param batch_std_labels:
+        @param sigma:
+        @return:
+        '''
+        # computing pairwise differences w.r.t. predictions, i.e., s_i - s_j
+        batch_s_ij = torch.unsqueeze(batch_preds, dim=3) - torch.unsqueeze(batch_preds, dim=2)
+        batch_p_ij = torch.sigmoid(sigma * batch_s_ij)
+
+        # computing pairwise differences w.r.t. standard labels, i.e., S_{ij}
+        batch_std_diffs = torch.unsqueeze(batch_std_labels, dim=3) - torch.unsqueeze(batch_std_labels, dim=2)
+        batch_std_p_ij = torch.sigmoid(sigma * batch_std_diffs)
+        return batch_p_ij, batch_std_p_ij
 
 
 
@@ -367,20 +505,20 @@ class RankNeg(NeuralRanker):
 
         num_queries = 0
         sum_val_loss = torch.zeros(1).to(self.device)
+        sum_val_spread = torch.zeros(1).to(self.device)
         for batch_ids, batch_q_doc_vectors, batch_std_labels in vali_data:  # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
-            if batch_std_labels.size(1) < k:
-                continue  # skip if the number of documents is smaller than k
-            else:
-                num_queries += len(batch_ids)
+            num_queries += 1
 
             if self.gpu:
                 batch_q_doc_vectors = batch_q_doc_vectors.to(self.device)
             batch_preds = self.predict(batch_q_doc_vectors)
-            val_loss = self.custom_loss_function(batch_preds, batch_std_labels)
-
+            val_loss, spread = self.custom_loss_function(batch_preds, batch_std_labels)
+            
             sum_val_loss += val_loss  # due to batch processing
-
-        avg_val_loss = val_loss / num_queries
+            sum_val_spread += spread
+        avg_val_loss = sum_val_loss / num_queries
+        avg_spread = sum_val_spread / num_queries
+        print('val spread', avg_spread, file=sys.stderr)
         return avg_val_loss.cpu()
 
     def adhoc_performance_at_ks(self,

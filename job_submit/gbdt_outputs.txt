@@ -1,0 +1,116 @@
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:177: UserWarning: Found `num_trees` in params. Will use it instead of argument
+  _log_warning(f"Found `{alias}` in params. Will use it instead of argument")
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:181: UserWarning: 'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. Pass 'early_stopping()' callback via 'callbacks' argument instead.
+  _log_warning("'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. "
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:239: UserWarning: 'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. Pass 'log_evaluation()' callback via 'callbacks' argument instead.
+  _log_warning("'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. "
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.01, 'num_leaves': 5, 'num_trees': 10, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+
+Start LightGBMLambdaMART on MSLRWEB30K >>>
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.01, 'num_leaves': 5, 'num_trees': 10, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+Fold- 1
+Number of robust test groups 51
+Number of robust samples (7778,)
+Number of samples (748937,)
+Training until validation scores don't improve for 20 rounds
+[10]	valid_0's ndcg@5: 0.32749
+Did not meet early stopping. Best iteration is:
+[2]	valid_0's ndcg@5: 0.544861
+Full test metrics
+[0.235486   0.21380177 0.22022687 0.24871428 0.29842272 0.34818763]
+[0.235486   0.21380177 0.22022687 0.24871428 0.29842272 0.34818763]
+[0.235486   0.21380177 0.22022687 0.24871428 0.29842272 0.34818763]
+[0.235486   0.21380177 0.22022687 0.24871428 0.29842272 0.34818763]
+[0.235486   0.21380177 0.22022687 0.24871428 0.29842272 0.34818763]
+[0.235486   0.21380177 0.22022687 0.24871428 0.29842272 0.34818763]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.2355	
+nDCG@3:0.2138	
+nDCG@5:0.2202	
+nDCG@10:0.2487	
+nDCG@20:0.2984	
+nDCG@50:0.3482	
+nERR@1:0.2355	
+nERR@3:0.2939	
+nERR@5:0.3205	
+nERR@10:0.3476	
+nERR@20:0.3544	
+nERR@50:0.3221	
+MAP@1:0.2087	
+MAP@3:0.1841	
+MAP@5:0.1855	
+MAP@10:0.1984	
+MAP@20:0.2114	
+MAP@50:0.2160	
+P@1:0.5618	
+P@3:0.5364	
+P@5:0.5362	
+P@10:0.5459	
+P@20:0.5301	
+P@50:0.4308
+Robust test metrics
+[0.13352007 0.11916845 0.12225845 0.12284768 0.13855174 0.21931888]
+[0.13352007 0.11916845 0.12225845 0.12284768 0.13855174 0.21931888]
+[0.13352007 0.11916845 0.12225845 0.12284768 0.13855174 0.21931888]
+[0.13352007 0.11916845 0.12225845 0.12284768 0.13855174 0.21931888]
+[0.13352007 0.11916845 0.12225845 0.12284768 0.13855174 0.21931888]
+[0.13352007 0.11916845 0.12225845 0.12284768 0.13855174 0.21931888]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.1335	
+nDCG@3:0.1192	
+nDCG@5:0.1223	
+nDCG@10:0.1228	
+nDCG@20:0.1386	
+nDCG@50:0.2193	
+nERR@1:0.1335	
+nERR@3:0.1698	
+nERR@5:0.1886	
+nERR@10:0.2026	
+nERR@20:0.2133	
+nERR@50:0.1808	
+MAP@1:0.1454	
+MAP@3:0.1194	
+MAP@5:0.1178	
+MAP@10:0.1242	
+MAP@20:0.1205	
+MAP@50:0.1366	
+P@1:0.4118	
+P@3:0.3856	
+P@5:0.3961	
+P@10:0.3804	
+P@20:0.3363	
+P@50:0.3078
+Elapsed time:	 0:15:54.523203
+
+
+LightGBMLambdaMART 5-fold cross validation scores: nDCG@1:0.2355, nDCG@3:0.2138, nDCG@5:0.2202, nDCG@10:0.2487, nDCG@20:0.2984, nDCG@50:0.3482
+LightGBMLambdaMART 5-fold cross validation scores: nERR@1:0.2355, nERR@3:0.2939, nERR@5:0.3205, nERR@10:0.3476, nERR@20:0.3544, nERR@50:0.3221
+LightGBMLambdaMART 5-fold cross validation scores: MAP@1:0.2087, MAP@3:0.1841, MAP@5:0.1855, MAP@10:0.1984, MAP@20:0.2114, MAP@50:0.2160
+LightGBMLambdaMART 5-fold cross validation scores: P@1:0.5618, P@3:0.5364, P@5:0.5362, P@10:0.5459, P@20:0.5301, P@50:0.4308
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.05, 'num_leaves': 5, 'num_trees': 10, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+
+Start LightGBMLambdaMART on MSLRWEB30K >>>
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.05, 'num_leaves': 5, 'num_trees': 10, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+Fold- 1
+Traceback (most recent call last):
+  File "/afs/ece.cmu.edu/usr/charlieh/ptranking/e2e_eval.py", line 136, in <module>
+    evaluator.run(model_id=argobj.pretrainer, dir_json=argobj.dir_json, config_with_json=True, argobj=argobj)
+  File "/afs/ece.cmu.edu/usr/charlieh/ptranking/ptranking/ltr_tree/eval/ltr_tree.py", line 410, in run
+    self.grid_run(debug=debug, model_id=model_id, dir_json=dir_json, argobj=argobj)
+  File "/afs/ece.cmu.edu/usr/charlieh/ptranking/ptranking/ltr_tree/eval/ltr_tree.py", line 404, in grid_run
+    self.kfold_cv_eval(data_dict=data_dict, eval_dict=eval_dict, model_para_dict=model_para_dict, argobj=argobj)
+  File "/afs/ece.cmu.edu/usr/charlieh/ptranking/ptranking/ltr_tree/eval/ltr_tree.py", line 260, in kfold_cv_eval
+    save_model_dir=self.save_model_dir)
+  File "/afs/ece.cmu.edu/usr/charlieh/ptranking/ptranking/ltr_tree/lambdamart/lightgbm_lambdaMART.py", line 106, in run
+    x_train_full, y_train_full = load_svmlight_file(file_train_data)
+  File "/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/sklearn/datasets/_svmlight_format_io.py", line 172, in load_svmlight_file
+    length=length,
+  File "/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/sklearn/datasets/_svmlight_format_io.py", line 332, in load_svmlight_files
+    for f in files
+  File "/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/sklearn/datasets/_svmlight_format_io.py", line 332, in <listcomp>
+    for f in files
+  File "/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/sklearn/datasets/_svmlight_format_io.py", line 204, in _open_and_load
+    f, dtype, multilabel, zero_based, query_id, offset, length
+KeyboardInterrupt

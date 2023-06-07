@@ -464,6 +464,8 @@ class EvalSetting(Parameter):
         self.eval_dict['cutoffs'] = cutoffs
 
     def check_consistence(self, vali_k=None, cutoffs=None):
+        print(self.eval_dict['vali_k'], vali_k)
+        print(self.eval_dict['cutoffs'], cutoffs)
         return (self.eval_dict['vali_k'] == vali_k) and (self.eval_dict['cutoffs'] == cutoffs)
 
     def grid_search(self):

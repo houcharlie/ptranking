@@ -1,71 +1,16 @@
 
-0.0005 1e-05 0 zeroes 0.3 64 5 0.01 SimSiam 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 1 zeroes 0.3 64 5 0.01 SimSiam 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 2 zeroes 0.3 64 5 0.01 SimSiam 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 3 zeroes 0.3 64 5 0.01 SimSiam 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 4 zeroes 0.3 64 5 0.01 SimSiam 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 5 zeroes 0.3 64 5 0.01 SimSiam 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 6 zeroes 0.3 64 5 0.01 SimSiam 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 7 zeroes 0.3 64 5 0.01 SimSiam 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 8 zeroes 0.3 64 5 0.01 SimSiam 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 9 zeroes 0.3 64 5 0.01 SimSiam 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 0 zeroes 0.1 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 1 zeroes 0.1 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 2 zeroes 0.1 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 3 zeroes 0.1 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 4 zeroes 0.1 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 5 zeroes 0.1 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 6 zeroes 0.1 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 7 zeroes 0.1 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 8 zeroes 0.1 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 9 zeroes 0.1 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 0 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 1 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 2 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 3 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 4 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 5 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 6 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 7 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 8 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 9 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 0.001 0 none 0.5 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 0.001 1 none 0.5 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 0.001 2 none 0.5 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 0.001 3 none 0.5 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 0.001 4 none 0.5 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 0.001 5 none 0.5 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 0.001 6 none 0.5 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 0.001 7 none 0.5 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 0.001 8 none 0.5 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 0.001 9 none 0.5 64 5 0.01 RankNeg 0.25 0.001 1.0 0.0 1.0 100
-0.0005 1e-05 0 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.2 0.0 1.0 100
-0.0005 1e-05 1 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.2 0.0 1.0 100
-0.0005 1e-05 2 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.2 0.0 1.0 100
-0.0005 1e-05 3 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.2 0.0 1.0 100
-0.0005 1e-05 4 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.2 0.0 1.0 100
-0.0005 1e-05 5 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.2 0.0 1.0 100
-0.0005 1e-05 6 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.2 0.0 1.0 100
-0.0005 1e-05 7 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.2 0.0 1.0 100
-0.0005 1e-05 8 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.2 0.0 1.0 100
-0.0005 1e-05 9 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.2 0.0 1.0 100
-0.0005 1e-05 0 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.5 0.0 1.0 100
-0.0005 1e-05 1 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.5 0.0 1.0 100
-0.0005 1e-05 2 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.5 0.0 1.0 100
-0.0005 1e-05 3 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.5 0.0 1.0 100
-0.0005 1e-05 4 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.5 0.0 1.0 100
-0.0005 1e-05 5 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.5 0.0 1.0 100
-0.0005 1e-05 6 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.5 0.0 1.0 100
-0.0005 1e-05 7 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.5 0.0 1.0 100
-0.0005 1e-05 8 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.5 0.0 1.0 100
-0.0005 1e-05 9 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.5 0.0 1.0 100
-0.0005 1e-05 0 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.7 0.0 1.0 100
-0.0005 1e-05 1 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.7 0.0 1.0 100
-0.0005 1e-05 2 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.7 0.0 1.0 100
-0.0005 1e-05 3 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.7 0.0 1.0 100
-0.0005 1e-05 4 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.7 0.0 1.0 100
-0.0005 1e-05 5 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.7 0.0 1.0 100
-0.0005 1e-05 6 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.7 0.0 1.0 100
-0.0005 1e-05 7 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.7 0.0 1.0 100
-0.0005 1e-05 8 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.7 0.0 1.0 100
-0.0005 1e-05 9 zeroes 0.95 64 5 0.01 RankNeg 0.25 0.001 0.7 0.0 1.0 100
+0.001 5e-05 0 gaussian 0.5 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100 /jet/home/houc/ptranking/job_submit/inputs/MSLRWEB30K 0 3 1 2
+0.001 5e-05 1 gaussian 0.5 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100 /jet/home/houc/ptranking/job_submit/inputs/MSLRWEB30K 0 3 1 2
+0.001 5e-05 2 gaussian 0.5 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100 /jet/home/houc/ptranking/job_submit/inputs/MSLRWEB30K 0 3 1 2
+0.001 5e-05 3 gaussian 0.5 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100 /jet/home/houc/ptranking/job_submit/inputs/MSLRWEB30K 0 3 1 2
+0.001 5e-05 4 gaussian 0.5 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100 /jet/home/houc/ptranking/job_submit/inputs/MSLRWEB30K 0 3 1 2
+0.001 5e-05 0 gaussian 0.5 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100 /jet/home/houc/ptranking/job_submit/inputs/Set1 0 3 1 2
+0.001 5e-05 1 gaussian 0.5 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100 /jet/home/houc/ptranking/job_submit/inputs/Set1 0 3 1 2
+0.001 5e-05 2 gaussian 0.5 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100 /jet/home/houc/ptranking/job_submit/inputs/Set1 0 3 1 2
+0.001 5e-05 3 gaussian 0.5 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100 /jet/home/houc/ptranking/job_submit/inputs/Set1 0 3 1 2
+0.001 5e-05 4 gaussian 0.5 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100 /jet/home/houc/ptranking/job_submit/inputs/Set1 0 3 1 2
+0.001 5e-05 0 gaussian 0.5 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100 /jet/home/houc/ptranking/job_submit/inputs/Istella_S 0 3 1 2
+0.001 5e-05 1 gaussian 0.5 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100 /jet/home/houc/ptranking/job_submit/inputs/Istella_S 0 3 1 2
+0.001 5e-05 2 gaussian 0.5 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100 /jet/home/houc/ptranking/job_submit/inputs/Istella_S 0 3 1 2
+0.001 5e-05 3 gaussian 0.5 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100 /jet/home/houc/ptranking/job_submit/inputs/Istella_S 0 3 1 2
+0.001 5e-05 4 gaussian 0.5 64 5 0.01 SimCLR 0.25 0.001 1.0 0.0 1.0 100 /jet/home/houc/ptranking/job_submit/inputs/Istella_S 0 3 1 2

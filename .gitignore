@@ -48,7 +48,15 @@ coverage.xml
 
 # Sphinx documentation
 docs/_build/
-
+outputss.txt
 *simsiam_expts*
 *rankneg_expt*
 *MSLR_val_plots*
+*.out*
+*augmentation_study*
+*gbdt_references*
+*outlier_img*
+*probe_study*
+*rankneg_study*
+*synthesis_study*
+*variance_study*

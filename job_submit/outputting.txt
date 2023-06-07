@@ -1,0 +1,1010 @@
+Matplotlib created a temporary config/cache directory at /tmp/matplotlib-i6uvh04z because the default path (/afs/ece.cmu.edu/usr/charlieh/.config/matplotlib) is not a writable directory; it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:177: UserWarning: Found `num_trees` in params. Will use it instead of argument
+  _log_warning(f"Found `{alias}` in params. Will use it instead of argument")
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:181: UserWarning: 'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. Pass 'early_stopping()' callback via 'callbacks' argument instead.
+  _log_warning("'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. "
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:239: UserWarning: 'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. Pass 'log_evaluation()' callback via 'callbacks' argument instead.
+  _log_warning("'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. "
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+
+Start LightGBMLambdaMART on MSLRWEB30K >>>
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+Fold- 1
+Number of robust test groups 51
+Number of robust samples (7778,)
+Number of samples (748937,)
+Training until validation scores don't improve for 20 rounds
+[10]	valid_0's ndcg@5: 0.277598
+[20]	valid_0's ndcg@5: 0.299727
+[30]	valid_0's ndcg@5: 0.311808
+[40]	valid_0's ndcg@5: 0.317061
+[50]	valid_0's ndcg@5: 0.320014
+[60]	valid_0's ndcg@5: 0.320948
+[70]	valid_0's ndcg@5: 0.32244
+[80]	valid_0's ndcg@5: 0.323086
+[90]	valid_0's ndcg@5: 0.323282
+[100]	valid_0's ndcg@5: 0.323233
+Early stopping, best iteration is:
+[81]	valid_0's ndcg@5: 0.323493
+Full test metrics
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.3048	
+nDCG@3:0.3092	
+nDCG@5:0.3224	
+nDCG@10:0.3533	
+nDCG@20:0.3910	
+nDCG@50:0.4430	
+nERR@1:0.3048	
+nERR@3:0.4008	
+nERR@5:0.4347	
+nERR@10:0.4599	
+nERR@20:0.4613	
+nERR@50:0.4279	
+MAP@1:0.2408	
+MAP@3:0.2269	
+MAP@5:0.2255	
+MAP@10:0.2319	
+MAP@20:0.2425	
+MAP@50:0.2672	
+P@1:0.6756	
+P@3:0.6493	
+P@5:0.6336	
+P@10:0.6114	
+P@20:0.5760	
+P@50:0.4996
+Robust test metrics
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.2075	
+nDCG@3:0.2286	
+nDCG@5:0.2473	
+nDCG@10:0.2750	
+nDCG@20:0.3040	
+nDCG@50:0.3526	
+nERR@1:0.2075	
+nERR@3:0.3175	
+nERR@5:0.3548	
+nERR@10:0.3777	
+nERR@20:0.3845	
+nERR@50:0.3477	
+MAP@1:0.1814	
+MAP@3:0.1584	
+MAP@5:0.1539	
+MAP@10:0.1535	
+MAP@20:0.1660	
+MAP@50:0.1847	
+P@1:0.5294	
+P@3:0.5163	
+P@5:0.5059	
+P@10:0.4902	
+P@20:0.4676	
+P@50:0.3976
+Elapsed time:	 0:07:27.626376
+
+
+LightGBMLambdaMART 5-fold cross validation scores: nDCG@1:0.3048, nDCG@3:0.3092, nDCG@5:0.3224, nDCG@10:0.3533, nDCG@20:0.3910, nDCG@50:0.4430
+LightGBMLambdaMART 5-fold cross validation scores: nERR@1:0.3048, nERR@3:0.4008, nERR@5:0.4347, nERR@10:0.4599, nERR@20:0.4613, nERR@50:0.4279
+LightGBMLambdaMART 5-fold cross validation scores: MAP@1:0.2408, MAP@3:0.2269, MAP@5:0.2255, MAP@10:0.2319, MAP@20:0.2425, MAP@50:0.2672
+LightGBMLambdaMART 5-fold cross validation scores: P@1:0.6756, P@3:0.6493, P@5:0.6336, P@10:0.6114, P@20:0.5760, P@50:0.4996
+Matplotlib created a temporary config/cache directory at /tmp/matplotlib-4qitvv40 because the default path (/afs/ece.cmu.edu/usr/charlieh/.config/matplotlib) is not a writable directory; it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:177: UserWarning: Found `num_trees` in params. Will use it instead of argument
+  _log_warning(f"Found `{alias}` in params. Will use it instead of argument")
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:181: UserWarning: 'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. Pass 'early_stopping()' callback via 'callbacks' argument instead.
+  _log_warning("'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. "
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:239: UserWarning: 'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. Pass 'log_evaluation()' callback via 'callbacks' argument instead.
+  _log_warning("'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. "
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+
+Start LightGBMLambdaMART on MSLRWEB30K >>>
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+Fold- 1
+Number of robust test groups 51
+Number of robust samples (7778,)
+Number of samples (748937,)
+Training until validation scores don't improve for 20 rounds
+[10]	valid_0's ndcg@5: 0.277598
+[20]	valid_0's ndcg@5: 0.299727
+[30]	valid_0's ndcg@5: 0.311808
+[40]	valid_0's ndcg@5: 0.317061
+[50]	valid_0's ndcg@5: 0.320014
+[60]	valid_0's ndcg@5: 0.320948
+[70]	valid_0's ndcg@5: 0.32244
+[80]	valid_0's ndcg@5: 0.323086
+[90]	valid_0's ndcg@5: 0.323282
+[100]	valid_0's ndcg@5: 0.323233
+Early stopping, best iteration is:
+[81]	valid_0's ndcg@5: 0.323493
+Full test metrics
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.3048	
+nDCG@3:0.3092	
+nDCG@5:0.3224	
+nDCG@10:0.3533	
+nDCG@20:0.3910	
+nDCG@50:0.4430	
+nERR@1:0.3048	
+nERR@3:0.4008	
+nERR@5:0.4347	
+nERR@10:0.4599	
+nERR@20:0.4613	
+nERR@50:0.4279	
+MAP@1:0.2408	
+MAP@3:0.2269	
+MAP@5:0.2255	
+MAP@10:0.2319	
+MAP@20:0.2425	
+MAP@50:0.2672	
+P@1:0.6756	
+P@3:0.6493	
+P@5:0.6336	
+P@10:0.6114	
+P@20:0.5760	
+P@50:0.4996
+Robust test metrics
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.2075	
+nDCG@3:0.2286	
+nDCG@5:0.2473	
+nDCG@10:0.2750	
+nDCG@20:0.3040	
+nDCG@50:0.3526	
+nERR@1:0.2075	
+nERR@3:0.3175	
+nERR@5:0.3548	
+nERR@10:0.3777	
+nERR@20:0.3845	
+nERR@50:0.3477	
+MAP@1:0.1814	
+MAP@3:0.1584	
+MAP@5:0.1539	
+MAP@10:0.1535	
+MAP@20:0.1660	
+MAP@50:0.1847	
+P@1:0.5294	
+P@3:0.5163	
+P@5:0.5059	
+P@10:0.4902	
+P@20:0.4676	
+P@50:0.3976
+Elapsed time:	 0:06:57.304998
+
+
+LightGBMLambdaMART 5-fold cross validation scores: nDCG@1:0.3048, nDCG@3:0.3092, nDCG@5:0.3224, nDCG@10:0.3533, nDCG@20:0.3910, nDCG@50:0.4430
+LightGBMLambdaMART 5-fold cross validation scores: nERR@1:0.3048, nERR@3:0.4008, nERR@5:0.4347, nERR@10:0.4599, nERR@20:0.4613, nERR@50:0.4279
+LightGBMLambdaMART 5-fold cross validation scores: MAP@1:0.2408, MAP@3:0.2269, MAP@5:0.2255, MAP@10:0.2319, MAP@20:0.2425, MAP@50:0.2672
+LightGBMLambdaMART 5-fold cross validation scores: P@1:0.6756, P@3:0.6493, P@5:0.6336, P@10:0.6114, P@20:0.5760, P@50:0.4996
+Matplotlib created a temporary config/cache directory at /tmp/matplotlib-zbec4tf8 because the default path (/afs/ece.cmu.edu/usr/charlieh/.config/matplotlib) is not a writable directory; it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:177: UserWarning: Found `num_trees` in params. Will use it instead of argument
+  _log_warning(f"Found `{alias}` in params. Will use it instead of argument")
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:181: UserWarning: 'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. Pass 'early_stopping()' callback via 'callbacks' argument instead.
+  _log_warning("'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. "
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:239: UserWarning: 'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. Pass 'log_evaluation()' callback via 'callbacks' argument instead.
+  _log_warning("'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. "
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+
+Start LightGBMLambdaMART on MSLRWEB30K >>>
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+Fold- 1
+Number of robust test groups 51
+Number of robust samples (7778,)
+Number of samples (748937,)
+Training until validation scores don't improve for 20 rounds
+[10]	valid_0's ndcg@5: 0.277598
+[20]	valid_0's ndcg@5: 0.299727
+[30]	valid_0's ndcg@5: 0.311808
+[40]	valid_0's ndcg@5: 0.317061
+[50]	valid_0's ndcg@5: 0.320014
+[60]	valid_0's ndcg@5: 0.320948
+[70]	valid_0's ndcg@5: 0.32244
+[80]	valid_0's ndcg@5: 0.323086
+[90]	valid_0's ndcg@5: 0.323282
+[100]	valid_0's ndcg@5: 0.323233
+Early stopping, best iteration is:
+[81]	valid_0's ndcg@5: 0.323493
+Full test metrics
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.3048	
+nDCG@3:0.3092	
+nDCG@5:0.3224	
+nDCG@10:0.3533	
+nDCG@20:0.3910	
+nDCG@50:0.4430	
+nERR@1:0.3048	
+nERR@3:0.4008	
+nERR@5:0.4347	
+nERR@10:0.4599	
+nERR@20:0.4613	
+nERR@50:0.4279	
+MAP@1:0.2408	
+MAP@3:0.2269	
+MAP@5:0.2255	
+MAP@10:0.2319	
+MAP@20:0.2425	
+MAP@50:0.2672	
+P@1:0.6756	
+P@3:0.6493	
+P@5:0.6336	
+P@10:0.6114	
+P@20:0.5760	
+P@50:0.4996
+Robust test metrics
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.2075	
+nDCG@3:0.2286	
+nDCG@5:0.2473	
+nDCG@10:0.2750	
+nDCG@20:0.3040	
+nDCG@50:0.3526	
+nERR@1:0.2075	
+nERR@3:0.3175	
+nERR@5:0.3548	
+nERR@10:0.3777	
+nERR@20:0.3845	
+nERR@50:0.3477	
+MAP@1:0.1814	
+MAP@3:0.1584	
+MAP@5:0.1539	
+MAP@10:0.1535	
+MAP@20:0.1660	
+MAP@50:0.1847	
+P@1:0.5294	
+P@3:0.5163	
+P@5:0.5059	
+P@10:0.4902	
+P@20:0.4676	
+P@50:0.3976
+Elapsed time:	 0:06:48.106129
+
+
+LightGBMLambdaMART 5-fold cross validation scores: nDCG@1:0.3048, nDCG@3:0.3092, nDCG@5:0.3224, nDCG@10:0.3533, nDCG@20:0.3910, nDCG@50:0.4430
+LightGBMLambdaMART 5-fold cross validation scores: nERR@1:0.3048, nERR@3:0.4008, nERR@5:0.4347, nERR@10:0.4599, nERR@20:0.4613, nERR@50:0.4279
+LightGBMLambdaMART 5-fold cross validation scores: MAP@1:0.2408, MAP@3:0.2269, MAP@5:0.2255, MAP@10:0.2319, MAP@20:0.2425, MAP@50:0.2672
+LightGBMLambdaMART 5-fold cross validation scores: P@1:0.6756, P@3:0.6493, P@5:0.6336, P@10:0.6114, P@20:0.5760, P@50:0.4996
+Matplotlib created a temporary config/cache directory at /tmp/matplotlib-x_9kfba7 because the default path (/afs/ece.cmu.edu/usr/charlieh/.config/matplotlib) is not a writable directory; it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:177: UserWarning: Found `num_trees` in params. Will use it instead of argument
+  _log_warning(f"Found `{alias}` in params. Will use it instead of argument")
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:181: UserWarning: 'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. Pass 'early_stopping()' callback via 'callbacks' argument instead.
+  _log_warning("'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. "
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:239: UserWarning: 'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. Pass 'log_evaluation()' callback via 'callbacks' argument instead.
+  _log_warning("'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. "
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+
+Start LightGBMLambdaMART on MSLRWEB30K >>>
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+Fold- 1
+Number of robust test groups 51
+Number of robust samples (7778,)
+Number of samples (748937,)
+Training until validation scores don't improve for 20 rounds
+[10]	valid_0's ndcg@5: 0.277598
+[20]	valid_0's ndcg@5: 0.299727
+[30]	valid_0's ndcg@5: 0.311808
+[40]	valid_0's ndcg@5: 0.317061
+[50]	valid_0's ndcg@5: 0.320014
+[60]	valid_0's ndcg@5: 0.320948
+[70]	valid_0's ndcg@5: 0.32244
+[80]	valid_0's ndcg@5: 0.323086
+[90]	valid_0's ndcg@5: 0.323282
+[100]	valid_0's ndcg@5: 0.323233
+Early stopping, best iteration is:
+[81]	valid_0's ndcg@5: 0.323493
+Full test metrics
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.3048	
+nDCG@3:0.3092	
+nDCG@5:0.3224	
+nDCG@10:0.3533	
+nDCG@20:0.3910	
+nDCG@50:0.4430	
+nERR@1:0.3048	
+nERR@3:0.4008	
+nERR@5:0.4347	
+nERR@10:0.4599	
+nERR@20:0.4613	
+nERR@50:0.4279	
+MAP@1:0.2408	
+MAP@3:0.2269	
+MAP@5:0.2255	
+MAP@10:0.2319	
+MAP@20:0.2425	
+MAP@50:0.2672	
+P@1:0.6756	
+P@3:0.6493	
+P@5:0.6336	
+P@10:0.6114	
+P@20:0.5760	
+P@50:0.4996
+Robust test metrics
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.2075	
+nDCG@3:0.2286	
+nDCG@5:0.2473	
+nDCG@10:0.2750	
+nDCG@20:0.3040	
+nDCG@50:0.3526	
+nERR@1:0.2075	
+nERR@3:0.3175	
+nERR@5:0.3548	
+nERR@10:0.3777	
+nERR@20:0.3845	
+nERR@50:0.3477	
+MAP@1:0.1814	
+MAP@3:0.1584	
+MAP@5:0.1539	
+MAP@10:0.1535	
+MAP@20:0.1660	
+MAP@50:0.1847	
+P@1:0.5294	
+P@3:0.5163	
+P@5:0.5059	
+P@10:0.4902	
+P@20:0.4676	
+P@50:0.3976
+Elapsed time:	 0:06:45.488608
+
+
+LightGBMLambdaMART 5-fold cross validation scores: nDCG@1:0.3048, nDCG@3:0.3092, nDCG@5:0.3224, nDCG@10:0.3533, nDCG@20:0.3910, nDCG@50:0.4430
+LightGBMLambdaMART 5-fold cross validation scores: nERR@1:0.3048, nERR@3:0.4008, nERR@5:0.4347, nERR@10:0.4599, nERR@20:0.4613, nERR@50:0.4279
+LightGBMLambdaMART 5-fold cross validation scores: MAP@1:0.2408, MAP@3:0.2269, MAP@5:0.2255, MAP@10:0.2319, MAP@20:0.2425, MAP@50:0.2672
+LightGBMLambdaMART 5-fold cross validation scores: P@1:0.6756, P@3:0.6493, P@5:0.6336, P@10:0.6114, P@20:0.5760, P@50:0.4996
+Matplotlib created a temporary config/cache directory at /tmp/matplotlib-yvkcj63e because the default path (/afs/ece.cmu.edu/usr/charlieh/.config/matplotlib) is not a writable directory; it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:177: UserWarning: Found `num_trees` in params. Will use it instead of argument
+  _log_warning(f"Found `{alias}` in params. Will use it instead of argument")
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:181: UserWarning: 'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. Pass 'early_stopping()' callback via 'callbacks' argument instead.
+  _log_warning("'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. "
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:239: UserWarning: 'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. Pass 'log_evaluation()' callback via 'callbacks' argument instead.
+  _log_warning("'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. "
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+
+Start LightGBMLambdaMART on MSLRWEB30K >>>
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+Fold- 1
+Number of robust test groups 51
+Number of robust samples (7778,)
+Number of samples (748937,)
+Training until validation scores don't improve for 20 rounds
+[10]	valid_0's ndcg@5: 0.277598
+[20]	valid_0's ndcg@5: 0.299727
+[30]	valid_0's ndcg@5: 0.311808
+[40]	valid_0's ndcg@5: 0.317061
+[50]	valid_0's ndcg@5: 0.320014
+[60]	valid_0's ndcg@5: 0.320948
+[70]	valid_0's ndcg@5: 0.32244
+[80]	valid_0's ndcg@5: 0.323086
+[90]	valid_0's ndcg@5: 0.323282
+[100]	valid_0's ndcg@5: 0.323233
+Early stopping, best iteration is:
+[81]	valid_0's ndcg@5: 0.323493
+Full test metrics
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.3048	
+nDCG@3:0.3092	
+nDCG@5:0.3224	
+nDCG@10:0.3533	
+nDCG@20:0.3910	
+nDCG@50:0.4430	
+nERR@1:0.3048	
+nERR@3:0.4008	
+nERR@5:0.4347	
+nERR@10:0.4599	
+nERR@20:0.4613	
+nERR@50:0.4279	
+MAP@1:0.2408	
+MAP@3:0.2269	
+MAP@5:0.2255	
+MAP@10:0.2319	
+MAP@20:0.2425	
+MAP@50:0.2672	
+P@1:0.6756	
+P@3:0.6493	
+P@5:0.6336	
+P@10:0.6114	
+P@20:0.5760	
+P@50:0.4996
+Robust test metrics
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.2075	
+nDCG@3:0.2286	
+nDCG@5:0.2473	
+nDCG@10:0.2750	
+nDCG@20:0.3040	
+nDCG@50:0.3526	
+nERR@1:0.2075	
+nERR@3:0.3175	
+nERR@5:0.3548	
+nERR@10:0.3777	
+nERR@20:0.3845	
+nERR@50:0.3477	
+MAP@1:0.1814	
+MAP@3:0.1584	
+MAP@5:0.1539	
+MAP@10:0.1535	
+MAP@20:0.1660	
+MAP@50:0.1847	
+P@1:0.5294	
+P@3:0.5163	
+P@5:0.5059	
+P@10:0.4902	
+P@20:0.4676	
+P@50:0.3976
+Elapsed time:	 0:07:59.711254
+
+
+LightGBMLambdaMART 5-fold cross validation scores: nDCG@1:0.3048, nDCG@3:0.3092, nDCG@5:0.3224, nDCG@10:0.3533, nDCG@20:0.3910, nDCG@50:0.4430
+LightGBMLambdaMART 5-fold cross validation scores: nERR@1:0.3048, nERR@3:0.4008, nERR@5:0.4347, nERR@10:0.4599, nERR@20:0.4613, nERR@50:0.4279
+LightGBMLambdaMART 5-fold cross validation scores: MAP@1:0.2408, MAP@3:0.2269, MAP@5:0.2255, MAP@10:0.2319, MAP@20:0.2425, MAP@50:0.2672
+LightGBMLambdaMART 5-fold cross validation scores: P@1:0.6756, P@3:0.6493, P@5:0.6336, P@10:0.6114, P@20:0.5760, P@50:0.4996
+Matplotlib created a temporary config/cache directory at /tmp/matplotlib-iwmkflo6 because the default path (/afs/ece.cmu.edu/usr/charlieh/.config/matplotlib) is not a writable directory; it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:177: UserWarning: Found `num_trees` in params. Will use it instead of argument
+  _log_warning(f"Found `{alias}` in params. Will use it instead of argument")
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:181: UserWarning: 'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. Pass 'early_stopping()' callback via 'callbacks' argument instead.
+  _log_warning("'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. "
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:239: UserWarning: 'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. Pass 'log_evaluation()' callback via 'callbacks' argument instead.
+  _log_warning("'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. "
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+
+Start LightGBMLambdaMART on MSLRWEB30K >>>
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+Fold- 1
+Number of robust test groups 51
+Number of robust samples (7778,)
+Number of samples (748937,)
+Training until validation scores don't improve for 20 rounds
+[10]	valid_0's ndcg@5: 0.277598
+[20]	valid_0's ndcg@5: 0.299727
+[30]	valid_0's ndcg@5: 0.311808
+[40]	valid_0's ndcg@5: 0.317061
+[50]	valid_0's ndcg@5: 0.320014
+[60]	valid_0's ndcg@5: 0.320948
+[70]	valid_0's ndcg@5: 0.32244
+[80]	valid_0's ndcg@5: 0.323086
+[90]	valid_0's ndcg@5: 0.323282
+[100]	valid_0's ndcg@5: 0.323233
+Early stopping, best iteration is:
+[81]	valid_0's ndcg@5: 0.323493
+Full test metrics
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.3048	
+nDCG@3:0.3092	
+nDCG@5:0.3224	
+nDCG@10:0.3533	
+nDCG@20:0.3910	
+nDCG@50:0.4430	
+nERR@1:0.3048	
+nERR@3:0.4008	
+nERR@5:0.4347	
+nERR@10:0.4599	
+nERR@20:0.4613	
+nERR@50:0.4279	
+MAP@1:0.2408	
+MAP@3:0.2269	
+MAP@5:0.2255	
+MAP@10:0.2319	
+MAP@20:0.2425	
+MAP@50:0.2672	
+P@1:0.6756	
+P@3:0.6493	
+P@5:0.6336	
+P@10:0.6114	
+P@20:0.5760	
+P@50:0.4996
+Robust test metrics
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.2075	
+nDCG@3:0.2286	
+nDCG@5:0.2473	
+nDCG@10:0.2750	
+nDCG@20:0.3040	
+nDCG@50:0.3526	
+nERR@1:0.2075	
+nERR@3:0.3175	
+nERR@5:0.3548	
+nERR@10:0.3777	
+nERR@20:0.3845	
+nERR@50:0.3477	
+MAP@1:0.1814	
+MAP@3:0.1584	
+MAP@5:0.1539	
+MAP@10:0.1535	
+MAP@20:0.1660	
+MAP@50:0.1847	
+P@1:0.5294	
+P@3:0.5163	
+P@5:0.5059	
+P@10:0.4902	
+P@20:0.4676	
+P@50:0.3976
+Elapsed time:	 0:06:42.955633
+
+
+LightGBMLambdaMART 5-fold cross validation scores: nDCG@1:0.3048, nDCG@3:0.3092, nDCG@5:0.3224, nDCG@10:0.3533, nDCG@20:0.3910, nDCG@50:0.4430
+LightGBMLambdaMART 5-fold cross validation scores: nERR@1:0.3048, nERR@3:0.4008, nERR@5:0.4347, nERR@10:0.4599, nERR@20:0.4613, nERR@50:0.4279
+LightGBMLambdaMART 5-fold cross validation scores: MAP@1:0.2408, MAP@3:0.2269, MAP@5:0.2255, MAP@10:0.2319, MAP@20:0.2425, MAP@50:0.2672
+LightGBMLambdaMART 5-fold cross validation scores: P@1:0.6756, P@3:0.6493, P@5:0.6336, P@10:0.6114, P@20:0.5760, P@50:0.4996
+Matplotlib created a temporary config/cache directory at /tmp/matplotlib-poenmux4 because the default path (/afs/ece.cmu.edu/usr/charlieh/.config/matplotlib) is not a writable directory; it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:177: UserWarning: Found `num_trees` in params. Will use it instead of argument
+  _log_warning(f"Found `{alias}` in params. Will use it instead of argument")
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:181: UserWarning: 'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. Pass 'early_stopping()' callback via 'callbacks' argument instead.
+  _log_warning("'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. "
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:239: UserWarning: 'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. Pass 'log_evaluation()' callback via 'callbacks' argument instead.
+  _log_warning("'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. "
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+
+Start LightGBMLambdaMART on MSLRWEB30K >>>
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+Fold- 1
+Number of robust test groups 51
+Number of robust samples (7778,)
+Number of samples (748937,)
+Training until validation scores don't improve for 20 rounds
+[10]	valid_0's ndcg@5: 0.277598
+[20]	valid_0's ndcg@5: 0.299727
+[30]	valid_0's ndcg@5: 0.311808
+[40]	valid_0's ndcg@5: 0.317061
+[50]	valid_0's ndcg@5: 0.320014
+[60]	valid_0's ndcg@5: 0.320948
+[70]	valid_0's ndcg@5: 0.32244
+[80]	valid_0's ndcg@5: 0.323086
+[90]	valid_0's ndcg@5: 0.323282
+[100]	valid_0's ndcg@5: 0.323233
+Early stopping, best iteration is:
+[81]	valid_0's ndcg@5: 0.323493
+Full test metrics
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.3048	
+nDCG@3:0.3092	
+nDCG@5:0.3224	
+nDCG@10:0.3533	
+nDCG@20:0.3910	
+nDCG@50:0.4430	
+nERR@1:0.3048	
+nERR@3:0.4008	
+nERR@5:0.4347	
+nERR@10:0.4599	
+nERR@20:0.4613	
+nERR@50:0.4279	
+MAP@1:0.2408	
+MAP@3:0.2269	
+MAP@5:0.2255	
+MAP@10:0.2319	
+MAP@20:0.2425	
+MAP@50:0.2672	
+P@1:0.6756	
+P@3:0.6493	
+P@5:0.6336	
+P@10:0.6114	
+P@20:0.5760	
+P@50:0.4996
+Robust test metrics
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.2075	
+nDCG@3:0.2286	
+nDCG@5:0.2473	
+nDCG@10:0.2750	
+nDCG@20:0.3040	
+nDCG@50:0.3526	
+nERR@1:0.2075	
+nERR@3:0.3175	
+nERR@5:0.3548	
+nERR@10:0.3777	
+nERR@20:0.3845	
+nERR@50:0.3477	
+MAP@1:0.1814	
+MAP@3:0.1584	
+MAP@5:0.1539	
+MAP@10:0.1535	
+MAP@20:0.1660	
+MAP@50:0.1847	
+P@1:0.5294	
+P@3:0.5163	
+P@5:0.5059	
+P@10:0.4902	
+P@20:0.4676	
+P@50:0.3976
+Elapsed time:	 0:06:37.127940
+
+
+LightGBMLambdaMART 5-fold cross validation scores: nDCG@1:0.3048, nDCG@3:0.3092, nDCG@5:0.3224, nDCG@10:0.3533, nDCG@20:0.3910, nDCG@50:0.4430
+LightGBMLambdaMART 5-fold cross validation scores: nERR@1:0.3048, nERR@3:0.4008, nERR@5:0.4347, nERR@10:0.4599, nERR@20:0.4613, nERR@50:0.4279
+LightGBMLambdaMART 5-fold cross validation scores: MAP@1:0.2408, MAP@3:0.2269, MAP@5:0.2255, MAP@10:0.2319, MAP@20:0.2425, MAP@50:0.2672
+LightGBMLambdaMART 5-fold cross validation scores: P@1:0.6756, P@3:0.6493, P@5:0.6336, P@10:0.6114, P@20:0.5760, P@50:0.4996
+Matplotlib created a temporary config/cache directory at /tmp/matplotlib-3dtyl04w because the default path (/afs/ece.cmu.edu/usr/charlieh/.config/matplotlib) is not a writable directory; it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:177: UserWarning: Found `num_trees` in params. Will use it instead of argument
+  _log_warning(f"Found `{alias}` in params. Will use it instead of argument")
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:181: UserWarning: 'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. Pass 'early_stopping()' callback via 'callbacks' argument instead.
+  _log_warning("'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. "
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:239: UserWarning: 'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. Pass 'log_evaluation()' callback via 'callbacks' argument instead.
+  _log_warning("'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. "
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+
+Start LightGBMLambdaMART on MSLRWEB30K >>>
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+Fold- 1
+Number of robust test groups 51
+Number of robust samples (7778,)
+Number of samples (748937,)
+Training until validation scores don't improve for 20 rounds
+[10]	valid_0's ndcg@5: 0.277598
+[20]	valid_0's ndcg@5: 0.299727
+[30]	valid_0's ndcg@5: 0.311808
+[40]	valid_0's ndcg@5: 0.317061
+[50]	valid_0's ndcg@5: 0.320014
+[60]	valid_0's ndcg@5: 0.320948
+[70]	valid_0's ndcg@5: 0.32244
+[80]	valid_0's ndcg@5: 0.323086
+[90]	valid_0's ndcg@5: 0.323282
+[100]	valid_0's ndcg@5: 0.323233
+Early stopping, best iteration is:
+[81]	valid_0's ndcg@5: 0.323493
+Full test metrics
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.3048	
+nDCG@3:0.3092	
+nDCG@5:0.3224	
+nDCG@10:0.3533	
+nDCG@20:0.3910	
+nDCG@50:0.4430	
+nERR@1:0.3048	
+nERR@3:0.4008	
+nERR@5:0.4347	
+nERR@10:0.4599	
+nERR@20:0.4613	
+nERR@50:0.4279	
+MAP@1:0.2408	
+MAP@3:0.2269	
+MAP@5:0.2255	
+MAP@10:0.2319	
+MAP@20:0.2425	
+MAP@50:0.2672	
+P@1:0.6756	
+P@3:0.6493	
+P@5:0.6336	
+P@10:0.6114	
+P@20:0.5760	
+P@50:0.4996
+Robust test metrics
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.2075	
+nDCG@3:0.2286	
+nDCG@5:0.2473	
+nDCG@10:0.2750	
+nDCG@20:0.3040	
+nDCG@50:0.3526	
+nERR@1:0.2075	
+nERR@3:0.3175	
+nERR@5:0.3548	
+nERR@10:0.3777	
+nERR@20:0.3845	
+nERR@50:0.3477	
+MAP@1:0.1814	
+MAP@3:0.1584	
+MAP@5:0.1539	
+MAP@10:0.1535	
+MAP@20:0.1660	
+MAP@50:0.1847	
+P@1:0.5294	
+P@3:0.5163	
+P@5:0.5059	
+P@10:0.4902	
+P@20:0.4676	
+P@50:0.3976
+Elapsed time:	 0:06:53.743800
+
+
+LightGBMLambdaMART 5-fold cross validation scores: nDCG@1:0.3048, nDCG@3:0.3092, nDCG@5:0.3224, nDCG@10:0.3533, nDCG@20:0.3910, nDCG@50:0.4430
+LightGBMLambdaMART 5-fold cross validation scores: nERR@1:0.3048, nERR@3:0.4008, nERR@5:0.4347, nERR@10:0.4599, nERR@20:0.4613, nERR@50:0.4279
+LightGBMLambdaMART 5-fold cross validation scores: MAP@1:0.2408, MAP@3:0.2269, MAP@5:0.2255, MAP@10:0.2319, MAP@20:0.2425, MAP@50:0.2672
+LightGBMLambdaMART 5-fold cross validation scores: P@1:0.6756, P@3:0.6493, P@5:0.6336, P@10:0.6114, P@20:0.5760, P@50:0.4996
+Matplotlib created a temporary config/cache directory at /tmp/matplotlib-11l559gz because the default path (/afs/ece.cmu.edu/usr/charlieh/.config/matplotlib) is not a writable directory; it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:177: UserWarning: Found `num_trees` in params. Will use it instead of argument
+  _log_warning(f"Found `{alias}` in params. Will use it instead of argument")
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:181: UserWarning: 'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. Pass 'early_stopping()' callback via 'callbacks' argument instead.
+  _log_warning("'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. "
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:239: UserWarning: 'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. Pass 'log_evaluation()' callback via 'callbacks' argument instead.
+  _log_warning("'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. "
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+
+Start LightGBMLambdaMART on MSLRWEB30K >>>
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+Fold- 1
+Number of robust test groups 51
+Number of robust samples (7778,)
+Number of samples (748937,)
+Training until validation scores don't improve for 20 rounds
+[10]	valid_0's ndcg@5: 0.277598
+[20]	valid_0's ndcg@5: 0.299727
+[30]	valid_0's ndcg@5: 0.311808
+[40]	valid_0's ndcg@5: 0.317061
+[50]	valid_0's ndcg@5: 0.320014
+[60]	valid_0's ndcg@5: 0.320948
+[70]	valid_0's ndcg@5: 0.32244
+[80]	valid_0's ndcg@5: 0.323086
+[90]	valid_0's ndcg@5: 0.323282
+[100]	valid_0's ndcg@5: 0.323233
+Early stopping, best iteration is:
+[81]	valid_0's ndcg@5: 0.323493
+Full test metrics
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.3048	
+nDCG@3:0.3092	
+nDCG@5:0.3224	
+nDCG@10:0.3533	
+nDCG@20:0.3910	
+nDCG@50:0.4430	
+nERR@1:0.3048	
+nERR@3:0.4008	
+nERR@5:0.4347	
+nERR@10:0.4599	
+nERR@20:0.4613	
+nERR@50:0.4279	
+MAP@1:0.2408	
+MAP@3:0.2269	
+MAP@5:0.2255	
+MAP@10:0.2319	
+MAP@20:0.2425	
+MAP@50:0.2672	
+P@1:0.6756	
+P@3:0.6493	
+P@5:0.6336	
+P@10:0.6114	
+P@20:0.5760	
+P@50:0.4996
+Robust test metrics
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.2075	
+nDCG@3:0.2286	
+nDCG@5:0.2473	
+nDCG@10:0.2750	
+nDCG@20:0.3040	
+nDCG@50:0.3526	
+nERR@1:0.2075	
+nERR@3:0.3175	
+nERR@5:0.3548	
+nERR@10:0.3777	
+nERR@20:0.3845	
+nERR@50:0.3477	
+MAP@1:0.1814	
+MAP@3:0.1584	
+MAP@5:0.1539	
+MAP@10:0.1535	
+MAP@20:0.1660	
+MAP@50:0.1847	
+P@1:0.5294	
+P@3:0.5163	
+P@5:0.5059	
+P@10:0.4902	
+P@20:0.4676	
+P@50:0.3976
+Elapsed time:	 0:08:14.652217
+
+
+LightGBMLambdaMART 5-fold cross validation scores: nDCG@1:0.3048, nDCG@3:0.3092, nDCG@5:0.3224, nDCG@10:0.3533, nDCG@20:0.3910, nDCG@50:0.4430
+LightGBMLambdaMART 5-fold cross validation scores: nERR@1:0.3048, nERR@3:0.4008, nERR@5:0.4347, nERR@10:0.4599, nERR@20:0.4613, nERR@50:0.4279
+LightGBMLambdaMART 5-fold cross validation scores: MAP@1:0.2408, MAP@3:0.2269, MAP@5:0.2255, MAP@10:0.2319, MAP@20:0.2425, MAP@50:0.2672
+LightGBMLambdaMART 5-fold cross validation scores: P@1:0.6756, P@3:0.6493, P@5:0.6336, P@10:0.6114, P@20:0.5760, P@50:0.4996
+Matplotlib created a temporary config/cache directory at /tmp/matplotlib-zbdt9sci because the default path (/afs/ece.cmu.edu/usr/charlieh/.config/matplotlib) is not a writable directory; it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:177: UserWarning: Found `num_trees` in params. Will use it instead of argument
+  _log_warning(f"Found `{alias}` in params. Will use it instead of argument")
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:181: UserWarning: 'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. Pass 'early_stopping()' callback via 'callbacks' argument instead.
+  _log_warning("'early_stopping_rounds' argument is deprecated and will be removed in a future release of LightGBM. "
+/afs/ece.cmu.edu/usr/charlieh/ptrank_venv/lib/python3.7/site-packages/lightgbm/engine.py:239: UserWarning: 'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. Pass 'log_evaluation()' callback via 'callbacks' argument instead.
+  _log_warning("'verbose_eval' argument is deprecated and will be removed in a future release of LightGBM. "
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+
+Start LightGBMLambdaMART on MSLRWEB30K >>>
+{'custom_dict': {'custom': False, 'custom_obj_id': None}, 'lightgbm_para_dict': {'boosting_type': 'gbdt', 'objective': 'lambdarank', 'metric': 'ndcg', 'learning_rate': 0.5, 'num_leaves': 200, 'num_trees': 300, 'num_threads': 16, 'min_data_in_leaf': 1, 'min_sum_hessian_in_leaf': 0.001, 'eval_at': [5], 'verbosity': -1}}
+Fold- 1
+Number of robust test groups 51
+Number of robust samples (7778,)
+Number of samples (748937,)
+Training until validation scores don't improve for 20 rounds
+[10]	valid_0's ndcg@5: 0.277598
+[20]	valid_0's ndcg@5: 0.299727
+[30]	valid_0's ndcg@5: 0.311808
+[40]	valid_0's ndcg@5: 0.317061
+[50]	valid_0's ndcg@5: 0.320014
+[60]	valid_0's ndcg@5: 0.320948
+[70]	valid_0's ndcg@5: 0.32244
+[80]	valid_0's ndcg@5: 0.323086
+[90]	valid_0's ndcg@5: 0.323282
+[100]	valid_0's ndcg@5: 0.323233
+Early stopping, best iteration is:
+[81]	valid_0's ndcg@5: 0.323493
+Full test metrics
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+[0.30478632 0.30921525 0.32243103 0.3532763  0.39104027 0.44304037]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.3048	
+nDCG@3:0.3092	
+nDCG@5:0.3224	
+nDCG@10:0.3533	
+nDCG@20:0.3910	
+nDCG@50:0.4430	
+nERR@1:0.3048	
+nERR@3:0.4008	
+nERR@5:0.4347	
+nERR@10:0.4599	
+nERR@20:0.4613	
+nERR@50:0.4279	
+MAP@1:0.2408	
+MAP@3:0.2269	
+MAP@5:0.2255	
+MAP@10:0.2319	
+MAP@20:0.2425	
+MAP@50:0.2672	
+P@1:0.6756	
+P@3:0.6493	
+P@5:0.6336	
+P@10:0.6114	
+P@20:0.5760	
+P@50:0.4996
+Robust test metrics
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+[0.20746963 0.228603   0.24725474 0.27499118 0.3040218  0.35263926]
+
+	 LightGBMLambdaMART Fold-1	
+nDCG@1:0.2075	
+nDCG@3:0.2286	
+nDCG@5:0.2473	
+nDCG@10:0.2750	
+nDCG@20:0.3040	
+nDCG@50:0.3526	
+nERR@1:0.2075	
+nERR@3:0.3175	
+nERR@5:0.3548	
+nERR@10:0.3777	
+nERR@20:0.3845	
+nERR@50:0.3477	
+MAP@1:0.1814	
+MAP@3:0.1584	
+MAP@5:0.1539	
+MAP@10:0.1535	
+MAP@20:0.1660	
+MAP@50:0.1847	
+P@1:0.5294	
+P@3:0.5163	
+P@5:0.5059	
+P@10:0.4902	
+P@20:0.4676	
+P@50:0.3976
+Elapsed time:	 0:06:46.878212
+
+
+LightGBMLambdaMART 5-fold cross validation scores: nDCG@1:0.3048, nDCG@3:0.3092, nDCG@5:0.3224, nDCG@10:0.3533, nDCG@20:0.3910, nDCG@50:0.4430
+LightGBMLambdaMART 5-fold cross validation scores: nERR@1:0.3048, nERR@3:0.4008, nERR@5:0.4347, nERR@10:0.4599, nERR@20:0.4613, nERR@50:0.4279
+LightGBMLambdaMART 5-fold cross validation scores: MAP@1:0.2408, MAP@3:0.2269, MAP@5:0.2255, MAP@10:0.2319, MAP@20:0.2425, MAP@50:0.2672
+LightGBMLambdaMART 5-fold cross validation scores: P@1:0.6756, P@3:0.6493, P@5:0.6336, P@10:0.6114, P@20:0.5760, P@50:0.4996

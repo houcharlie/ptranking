@@ -127,7 +127,18 @@ if __name__ == '__main__':
 
     ''' num negatives '''
     parser.add_argument('-num_negatives', type=int, help='Number of negatives per qg')
+    
+    ''' freeze '''
+    parser.add_argument('-freeze', type=int, help='Whether to freeze prev layers')
 
+    ''' number of probing layers '''
+    parser.add_argument('-probe_layers', type=int, help='Number of probing layers')
+
+    ''' finetune_only '''
+    parser.add_argument('-finetune_only', type=int, help='no pretrain')
+
+    ''' finetune_trial '''
+    parser.add_argument('-finetune_trials', type=int, help='finetune_trials')
 
     argobj = parser.parse_args()
     
@@ -136,9 +147,11 @@ if __name__ == '__main__':
         evaluator.run(model_id=argobj.pretrainer, dir_json=argobj.dir_json, config_with_json=True, argobj=argobj)
 
     else:
+        if argobj.freeze:
+            print('Finetune FROZEN')
         evaluator = LTREvaluator(cuda=argobj.cuda)
         # setup_seed(0)
-        if argobj.aug_type != 'none':
+        if argobj.aug_type != 'none' and not argobj.finetune_only:
             print('Starting pretraining!', sys.stderr)
             argobj.is_pretraining = True
             evaluator.run(model_id=argobj.pretrainer, dir_json=os.path.join(argobj.dir_json, '{0}/'.format(argobj.pretrainer)), config_with_json=True, argobj=argobj)
@@ -146,7 +159,7 @@ if __name__ == '__main__':
         print('Starting finetuning!', sys.stderr)
         argobj.is_pretraining = False
         if argobj.aug_type == 'none':
-            evaluator.run(model_id="RankNet", dir_json=os.path.join(argobj.dir_json, 'ranknet/'), config_with_json=True, argobj=argobj)
+            evaluator.run(model_id="LambdaRank", dir_json=os.path.join(argobj.dir_json, 'lambdarank/'), config_with_json=True, argobj=argobj)
         else:
             evaluator.run(model_id="LambdaRankTune", dir_json=os.path.join(argobj.dir_json, 'lambdaranktune/'), config_with_json=True, argobj=argobj)
 

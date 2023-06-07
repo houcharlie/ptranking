@@ -28,6 +28,11 @@ def qgswap(x, aug_percent, device, mix=0., scale=0.):
 
     return aug_x
 
+def gaussian(x, aug_percent, device):
+    aug_x = x.detach().clone().to(device)
+    noise_aug_x = aug_x + torch.randn_like(aug_x, device=device) * 2.0
+    return noise_aug_x
+
 def qg_and_zero(x, aug_percent, device, mix=0., scale=0.):
     """
     Takes x of dimension [batch, num_docs, num_features], and randomly swaps some percentage in-qg

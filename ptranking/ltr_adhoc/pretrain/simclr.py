@@ -5,14 +5,17 @@ import sys
 import torch.nn.functional as F
 
 from itertools import product
-from ptranking.base.utils import get_stacked_FFNet
+from ptranking.base.utils import get_stacked_FFNet, get_resnet
 from ptranking.base.ranker import NeuralRanker
-from ptranking.ltr_adhoc.pretrain.augmentations import zeroes, qgswap, qg_and_zero
+from ptranking.ltr_adhoc.pretrain.augmentations import zeroes, qgswap, gaussian
 from ptranking.data.data_utils import LABEL_TYPE
 from ptranking.ltr_adhoc.eval.parameter import ModelParameter
 from ptranking.ltr_adhoc.util.lambda_utils import get_pairwise_comp_probs
 from ptranking.metric.metric_utils import get_delta_ndcg
+from torch.nn.init import xavier_normal_ as nr_init
 from absl import logging
+from torch.nn.init import eye_ as eye_init
+from torch.nn.init import zeros_ as zero_init
 class SimCLR(NeuralRanker):
 
     def __init__(self, id='SimCLRPretrainer', sf_para_dict=None, model_para_dict=None, weight_decay=1e-3, gpu=False, device=None):
@@ -26,8 +29,8 @@ class SimCLR(NeuralRanker):
             self.augmentation = zeroes
         elif self.aug_type == 'qg':
             self.augmentation = qgswap
-        elif self.aug_type == 'qz':
-            self.augmentation = qg_and_zero
+        elif self.aug_type == 'gaussian':
+            self.augmentation = gaussian
 
     def init(self):
         self.point_sf = self.config_point_neural_scoring_function()
@@ -36,6 +39,7 @@ class SimCLR(NeuralRanker):
         self.point_sf.to(self.device)
         self.projector = self.config_head()
         self.loss = torch.nn.CrossEntropyLoss().to(self.device)
+        self.loss_no_reduction = torch.nn.CrossEntropyLoss(reduction='none').to(self.device)
         print(self.point_sf, file=sys.stderr)
         print(self.projector, file=sys.stderr)
         self.config_optimizer()
@@ -52,9 +56,13 @@ class SimCLR(NeuralRanker):
         for name, param in self.point_sf.named_parameters():
             if 'ff' in name and 'bias' not in name:
                 prev_dim = param.shape[0]
-        projector = nn.Sequential(nn.Linear(prev_dim, prev_dim),
-                                  nn.ReLU(), # first layer
-                                  nn.Linear(prev_dim, dim))
+        projector = nn.Sequential()
+        for i in range(3):
+            nr = nn.Linear(prev_dim, prev_dim)
+            projector.add_module('_'.join(['project', 'linear', str(i)]), nr)
+            projector.add_module('_'.join(['project', 'relu', str(i)]), nn.ReLU())
+        nr = nn.Linear(prev_dim, dim, bias=False)
+        projector.add_module('_'.join(['project', 'linear', 'final']), nr)
         if self.gpu: projector = projector.to(self.device)
 
         return projector
@@ -84,6 +92,10 @@ class SimCLR(NeuralRanker):
 
         point_sf = get_stacked_FFNet(ff_dims=ff_dims, AF=AF, TL_AF=TL_AF, apply_tl_af=apply_tl_af, dropout=dropout,
                                      BN=BN, bn_type=bn_type, bn_affine=bn_affine, device=self.device)
+        h_dim = 120
+        # point_sf = get_stacked_FFNet(ff_dims=ff_dims, AF=AF, TL_AF=TL_AF, apply_tl_af=apply_tl_af, dropout=dropout,
+        #                              BN=BN, bn_type=bn_type, bn_affine=bn_affine, device=self.device)
+        point_sf = get_resnet(num_features, h_dim)
         return point_sf
 
     def info_nce_loss(self, features, batch_size):
@@ -117,6 +129,95 @@ class SimCLR(NeuralRanker):
 
         return logits, labels
 
+    def forward(self, batch_q_doc_vectors):
+        '''
+        Forward pass through the scoring function, where each document is scored independently.
+        @param batch_q_doc_vectors: [batch_size, num_docs, num_features], the latter two dimensions {num_docs, num_features} denote feature vectors associated with the same query.
+        @return:
+        '''
+        batch_size, num_docs, num_features = batch_q_doc_vectors.size()
+        x1 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device)
+        x2 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device)
+
+        data_dim = batch_q_doc_vectors.shape[2]
+        # x1_flat = x1.reshape((-1, data_dim))
+        # x2_flat = x2.reshape((-1, data_dim))
+        embed1 = self.point_sf(x1)
+        embed2 = self.point_sf(x2)
+        z1 = self.projector(embed1)
+        z2 = self.projector(embed2)
+        
+        s1 = z1.view(-1, self.dim)  # [batch_size, embed_dim]
+        s2 = z2.view(-1, self.dim)  # [batch_size, embed_dim]
+
+
+        s_concat = torch.cat((s1, s2), dim=0).to(self.device)
+        logits_qg, labels_qg = self.info_nce_loss(s_concat, s1.shape[0])
+        return logits_qg, labels_qg
+    
+    def qg_forward(self, batch_q_doc_vectors):
+        '''
+        Forward pass through the scoring function, where each document is scored independently.
+        @param batch_q_doc_vectors: [batch_size, num_docs, num_features], the latter two dimensions {num_docs, num_features} denote feature vectors associated with the same query.
+        @return:
+        '''
+        batch_size, num_docs, num_features = batch_q_doc_vectors.size()
+        x1 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device)
+        x2 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device)
+
+        data_dim = batch_q_doc_vectors.shape[2]
+        # x1_flat = x1.reshape((-1, data_dim))
+        # x2_flat = x2.reshape((-1, data_dim))
+        embed1 = self.point_sf(x1)
+        embed2 = self.point_sf(x2)
+        z1 = self.projector(embed1)
+        z2 = self.projector(embed2)
+
+
+        z_concat = torch.cat((z1, z2), dim=1).to(self.device)
+        logits_qg, labels_qg = self.qg_info_nce_loss(z_concat, z1.shape[1], z1.shape[0])
+        return logits_qg, labels_qg
+
+    def qg_info_nce_loss(self, features, qg_size, batch_size):
+        # features: [batchsize, 2 x qgsize, embed_dim]
+
+        # [2 x qgsize]
+        labels = torch.cat([torch.arange(qg_size) for i in range(2)], dim=0)
+        # [2 x qgsize, 2 x qgsize] 4 identity matrices in each quadrant
+        labels = (labels.unsqueeze(0) == labels.unsqueeze(1)).float()
+        labels = labels.to(self.device)
+        # [batchsize, 2 x qgsize, 2 x qgsize]
+        labels = labels[None, :, :].expand(batch_size, -1, -1)
+        # [batchsize, 2 x qgsize, embed_dim]
+        features = F.normalize(features, dim=2)
+        # [batchsize, 2 x qgsize, embed_dim] x [batchsize, embed_dim, 2 x qgsize] = [batchsize, 2 x qgsize, 2 x qgsize] 
+        similarity_matrix = torch.bmm(features, features.permute(0, 2, 1))
+        # assert similarity_matrix.shape == (
+        #     self.args.n_views * self.args.batch_size, self.args.n_views * self.args.batch_size)
+        # assert similarity_matrix.shape == labels.shape
+
+        # discard the main diagonal from both: labels and similarities matrix
+        mask = torch.eye(labels.shape[1], dtype=torch.bool).to(self.device)[None, :, ].expand(batch_size, -1, -1)
+        labels = labels[~mask].view(batch_size, labels.shape[1], -1).to(self.device)
+        similarity_matrix = similarity_matrix[~mask].view(batch_size, similarity_matrix.shape[1], -1).to(self.device)
+        # assert similarity_matrix.shape == labels.shape
+
+        # select and combine multiple positives
+        # [batchsize, 2 x qgsize, 1]
+        positives = similarity_matrix[labels.bool()].view(batch_size, labels.shape[1], -1).to(self.device)
+        # select only the negatives the negatives
+        # [batchsize, 2 x qgsize, 2 x qgsize - 2]
+        negatives = similarity_matrix[~labels.bool()].view(batch_size, similarity_matrix.shape[1], -1).to(self.device)
+        # [batchsize, 2 x qgsize, 2 x qgsize - 1]
+        logits = torch.cat([positives, negatives], dim=2).to(self.device)
+        # [batchsize, 2 x qgsize]
+        labels = torch.zeros(logits.shape[1], dtype=torch.long).to(self.device)[None, :].expand(batch_size, -1)
+        # [batchsize, 2 x qgsize, 2 x qgsize - 1]
+        logits = logits / self.temperature
+
+        return logits, labels
+
+
     def train(self, train_data, epoch_k=None, **kwargs):
         '''
         One epoch training using the entire training data
@@ -144,36 +245,15 @@ class SimCLR(NeuralRanker):
                 all_attempts += attempts
             batches_processed += 1
             # print(batches_processed, file=sys.stderr)
+        total_norm = 0.
+        for p in self.point_sf.parameters():
+            param_norm = p.grad.detach().data.norm(2)
+            total_norm += param_norm.item() ** 2
+        total_norm = total_norm ** 0.5
+        print('Curr norm', total_norm, file=sys.stderr)
         print('Epoch accuracy', all_correct/all_attempts, 'out of', all_attempts, file=sys.stderr)
         epoch_loss = epoch_loss/num_queries
         return epoch_loss, stop_training
-
-
-    def forward(self, batch_q_doc_vectors):
-        '''
-        Forward pass through the scoring function, where each document is scored independently.
-        @param batch_q_doc_vectors: [batch_size, num_docs, num_features], the latter two dimensions {num_docs, num_features} denote feature vectors associated with the same query.
-        @return:
-        '''
-        batch_size, num_docs, num_features = batch_q_doc_vectors.size()
-        x1 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device)
-        x2 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device)
-
-        data_dim = batch_q_doc_vectors.shape[2]
-        # x1_flat = x1.reshape((-1, data_dim))
-        # x2_flat = x2.reshape((-1, data_dim))
-        embed1 = self.point_sf(x1)
-        embed2 = self.point_sf(x2)
-        z1 = self.projector(embed1)
-        z2 = self.projector(embed2)
-        
-        s1 = z1.view(-1, self.dim)  # [batch_size, embed_dim]
-        s2 = z2.view(-1, self.dim)  # [batch_size, embed_dim]
-
-
-        s_concat = torch.cat((s1, s2), dim=0).to(self.device)
-        logits_qg, labels_qg = self.info_nce_loss(s_concat, s1.shape[0])
-        return logits_qg, labels_qg
 
     def eval_mode(self):
         self.point_sf.eval()
@@ -188,10 +268,12 @@ class SimCLR(NeuralRanker):
             os.makedirs(dir)
 
         torch.save(self.point_sf.state_dict(), dir + name)
+        torch.save(self.projector.state_dict(), dir + name + 'projector')
 
     def load(self, file_model, **kwargs):
         device = kwargs['device']
         self.point_sf.load_state_dict(torch.load(file_model, map_location=device))
+        self.projector.load_state_dict(torch.load(file_model + 'projector', map_location=device))
 
     def get_tl_af(self):
         return self.sf_para_dict[self.sf_para_dict['sf_id']]['TL_AF']
@@ -203,15 +285,22 @@ class SimCLR(NeuralRanker):
         @param kwargs:
         @return:
         '''
-        logits_qg, labels_qg = batch_preds
-        lambda_loss = self.loss(logits_qg, labels_qg)
 
-        pred = torch.argmax(logits_qg, dim=1)
+        logits_qg, labels_qg = batch_preds
+        #lambda_loss = self.loss(logits_qg, labels_qg)
+        loss = self.loss_no_reduction(logits_qg.permute(0, 2, 1), labels_qg)
+        loss_reduced = loss.mean(dim = 1)
+        lambda_loss = loss_reduced.mean()
+
+        # [batchsize, 2 x qgsize]
+        pred = torch.argmax(logits_qg, dim=2)
+        # [batchsize, 2 x qgsize]
         correct = torch.sum(pred == labels_qg)
-        total_num = pred.shape[0]
+        total_num = pred.shape[0] * pred.shape[1]
         loss = lambda_loss
         self.optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.point_sf.parameters(), 2.0)
         self.optimizer.step()
         return loss, correct, total_num
     
@@ -224,7 +313,7 @@ class SimCLR(NeuralRanker):
         @return:
         '''
         stop_training = False
-        batch_preds = self.forward(batch_q_doc_vectors)
+        batch_preds = self.qg_forward(batch_q_doc_vectors)
 
         return self.custom_loss_function(batch_preds, batch_std_labels, **kwargs), stop_training
     

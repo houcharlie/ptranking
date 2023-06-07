@@ -563,7 +563,7 @@ class NeuralRanker(Evaluator):
         elif 'Adagrad' == self.opt:
             self.optimizer = optim.Adagrad(self.get_parameters(), lr=self.lr, weight_decay=self.weight_decay)
         elif 'SGD' == self.opt:
-            self.optimizer = optim.SGD(self.get_parameters(), lr=self.lr, weight_decay=self.weight_decay, momentum=0)
+            self.optimizer = optim.SGD(self.get_parameters(), lr=self.lr, weight_decay=self.weight_decay, momentum=0.9)
         else:
             raise NotImplementedError
 

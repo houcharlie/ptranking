@@ -1,0 +1,5 @@
+
+
+MSLR30K: /ocean/projects/cis230033p/houc/datasets/mslr/
+Set1: /ocean/projects/cis230033p/houc/datasets/yahoo/ltrc_yahoo/
+Istella_S: /ocean/projects/cis230033p/houc/datasets/istella-s-letor/sample/
