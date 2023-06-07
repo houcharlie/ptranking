@@ -46,17 +46,18 @@
       "apply_tl_af":[true],
       "out_dim":[136]
     },
-    "listsf":{
-      "BN":[true],
-      "bn_type":["BN2"],
-      "bn_affine":[false],
-      "RD":[false],
-      "apply_tl_af":[false],
-      "AF":["R"],
-      "ff_dims":[128, 256, 512],
-      "encoder_type":["DASALC"],
-      "encoder_layers":[3],
-      "n_heads":[2]
+      "listsf":{
+        "BN":[true],
+        "bn_type":["BN2"],
+        "bn_affine":[false],
+        "RD":[false],
+        "apply_tl_af":[false],
+        "AF":["R"],
+        "ff_dims":[128, 256, 512],
+        "encoder_type":["DASALC"],
+        "encoder_layers":[3],
+        "n_heads":[2]
+      }
     }
   }
-}
+  
