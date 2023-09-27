@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import StepLR
 
 from ptranking.data.data_utils import LABEL_TYPE
-from ptranking.base.utils import get_stacked_FFNet
+from ptranking.base.utils import get_stacked_FFNet, get_resnet
 from ptranking.metric.metric_utils import get_delta_ndcg
 from ptranking.base.adhoc_ranker import AdhocNeuralRanker
 from ptranking.ltr_adhoc.eval.parameter import ModelParameter
@@ -45,14 +45,15 @@ class LambdaRank(AdhocNeuralRanker):
         '''
         Initialization of a feed-forward neural network
         '''
-        encoder_layers = num_layers
-        ff_dims = [num_features]
-        for i in range(encoder_layers):
-            ff_dims.append(h_dim)
-        ff_dims.append(out_dim)
+        # encoder_layers = num_layers
+        # ff_dims = [num_features]
+        # for i in range(encoder_layers):
+        #     ff_dims.append(h_dim)
+        # ff_dims.append(out_dim)
 
-        point_sf = get_stacked_FFNet(ff_dims=ff_dims, AF=AF, TL_AF=TL_AF, apply_tl_af=apply_tl_af, dropout=dropout,
-                                     BN=BN, bn_type=bn_type, bn_affine=bn_affine, device=self.device)
+        # point_sf = get_stacked_FFNet(ff_dims=ff_dims, AF=AF, TL_AF=TL_AF, apply_tl_af=apply_tl_af, dropout=dropout,
+        #                              BN=BN, bn_type=bn_type, bn_affine=bn_affine, device=self.device)
+        point_sf = get_resnet(num_features, 136)
         return point_sf
     def custom_loss_function(self, batch_preds, batch_std_labels, **kwargs):
         '''

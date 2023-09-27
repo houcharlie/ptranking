@@ -5,7 +5,7 @@ import os
 import sys
 import datetime
 import numpy as np
-
+import random
 import torch
 
 from ptranking.base.ranker import LTRFRAME_TYPE
@@ -240,6 +240,8 @@ class TreeLTREvaluator(LTREvaluator):
 
         time_begin = datetime.datetime.now()        # timing
         l2r_cv_avg_ndcg_scores = np.zeros(len(cutoffs))  # fold average
+        l2r_cv_avg_robust_ndcg_scores = np.zeros(len(cutoffs))  # fold average
+
         l2r_cv_avg_nerr_scores = np.zeros(len(cutoffs))  # fold average
         l2r_cv_avg_ap_scores = np.zeros(len(cutoffs))  # fold average
         l2r_cv_avg_p_scores = np.zeros(len(cutoffs))  # fold average
@@ -291,16 +293,16 @@ class TreeLTREvaluator(LTREvaluator):
             list_all_fold_p_at_ks_per_q.extend(list_p_at_ks_per_q)
 
             print('Robust test metrics')
-            fold_avg_ndcg_at_ks, fold_avg_nerr_at_ks, fold_avg_ap_at_ks, fold_avg_p_at_ks,\
+            fold_avg_robust_ndcg_at_ks, fold_avg_nerr_at_ks, fold_avg_ap_at_ks, fold_avg_p_at_ks,\
             list_ndcg_at_ks_per_q, list_err_at_ks_per_q, list_ap_at_ks_per_q, list_p_at_ks_per_q = \
                                     self.cal_metric_at_ks(model_id=model_id, all_std_labels=y_test_robust, all_preds=y_pred_robust,
                                                           group=group_test_robust, ks=cutoffs, label_type=data_dict['label_type'])
-
+            l2r_cv_avg_robust_ndcg_scores = np.add(l2r_cv_avg_robust_ndcg_scores, fold_avg_robust_ndcg_at_ks)  # sum for later cv-performance
             performance_list = [model_id] if data_id in YAHOO_LTR or data_id in ISTELLA_LTR else [model_id + ' Fold-' + str(fold_k)]
-
+            
             for i, co in enumerate(cutoffs):
                 print(fold_avg_ndcg_at_ks)
-                performance_list.append('\nnDCG@{}:{:.4f}'.format(co, fold_avg_ndcg_at_ks[i]))
+                performance_list.append('\nnDCG@{}:{:.4f}'.format(co, fold_avg_robust_ndcg_at_ks[i]))
             for i, co in enumerate(cutoffs):
                 performance_list.append('\nnERR@{}:{:.4f}'.format(co, fold_avg_nerr_at_ks[i]))
             for i, co in enumerate(cutoffs):
@@ -318,6 +320,7 @@ class TreeLTREvaluator(LTREvaluator):
 
         print()  # begin to print either cv or average performance
         l2r_cv_avg_ndcg_scores = np.divide(l2r_cv_avg_ndcg_scores, 1)
+        l2r_cv_avg_robust_ndcg_scores = np.divide(l2r_cv_avg_robust_ndcg_scores, 1)
         l2r_cv_avg_nerr_scores = np.divide(l2r_cv_avg_nerr_scores, 1)
         l2r_cv_avg_ap_scores   = np.divide(l2r_cv_avg_ap_scores, 1)
         l2r_cv_avg_p_scores    = np.divide(l2r_cv_avg_p_scores, 1)
@@ -342,7 +345,7 @@ class TreeLTREvaluator(LTREvaluator):
         pickle_save(all_fold_ap_at_ks_per_q, file=self.output_root + '_'.join([data_id, model_id, 'all_fold_ap_at_ks_per_q.np']))
         pickle_save(all_fold_p_at_ks_per_q, file=self.output_root + '_'.join([data_id, model_id, 'all_fold_p_at_ks_per_q.np']))
 
-        return l2r_cv_avg_ndcg_scores, l2r_cv_avg_nerr_scores, l2r_cv_avg_ap_scores, l2r_cv_avg_p_scores
+        return l2r_cv_avg_ndcg_scores, l2r_cv_avg_robust_ndcg_scores, l2r_cv_avg_nerr_scores, l2r_cv_avg_ap_scores, l2r_cv_avg_p_scores
 
     def set_data_setting(self, debug=False, data_id=None, dir_data=None, tree_data_json=None):
         if tree_data_json is not None:
@@ -397,11 +400,30 @@ class TreeLTREvaluator(LTREvaluator):
             self.set_model_setting(debug=debug, model_id=model_id)
 
         ''' select the best setting through grid search '''
+        curr_ndcg_best = 0.
+        curr_robust_ndcg_best = 0.
+        best_params = None
+        ndcgs = []
+        robust_ndcgs = []
         for data_dict in self.iterate_data_setting():
             for eval_dict in self.iterate_eval_setting():
-                    for model_para_dict in self.iterate_model_setting():
-                        print(model_para_dict)
-                        self.kfold_cv_eval(data_dict=data_dict, eval_dict=eval_dict, model_para_dict=model_para_dict, argobj=argobj)
+                for model_para_dict in self.iterate_model_setting():
+                    currdict = model_para_dict.copy()
+                    # currdict['lightgbm_para_dict']['num_leaves'] = argobj.dim
+                    # currdict['lightgbm_para_dict']['min_data_in_leaf'] = argobj.layers
+                    ndcg, robust_ndcg, _, _, _ = self.kfold_cv_eval(data_dict=data_dict, eval_dict=eval_dict, model_para_dict=currdict, argobj=argobj)
+                    if ndcg[2] > curr_ndcg_best:
+                        curr_ndcg_best = ndcg[2]
+                        curr_robust_ndcg_best = robust_ndcg[2]
+                        best_params = model_para_dict
+                    # print(ndcg, robust_ndcg)
+                    # ndcgs.append(ndcg[2])
+                    # robust_ndcgs.append(robust_ndcg[2])
+                    
+        print('Best NDCG, robust NDCG, params', curr_ndcg_best, curr_robust_ndcg_best, best_params)
+        # print('NDCG: ', np.mean(ndcgs), np.std(ndcgs))
+        # print('Robust NDCG: ', np.mean(robust_ndcgs), np.std(robust_ndcgs))
+        
 
     def run(self, debug=False, model_id=None, config_with_json=None, dir_json=None,
             data_id=None, dir_data=None, dir_output=None, grid_search=False, argobj=None):

@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-val = np.load('/ocean/projects/cis230033p/houc/datasets/mslr/BufferedFold1/vali_MiR_1_MiD_10_PerQ_PreSort_QS_StandardScaler.np', allow_pickle=True)
-
+# val = np.load('/ocean/projects/cis230033p/houc/datasets/mslr/BufferedFold1/vali_MiR_1_MiD_10_PerQ_PreSort_QS_StandardScaler.np', allow_pickle=True)
+# val = np.load('/ocean/projects/cis230033p/houc/datasets/yahoo/ltrc_yahoo/set1.valid_MiR_1_MiD_10_PerQ_PreSort_QS_StandardScaler.np', allow_pickle=True)
+val = np.load('/ocean/projects/cis230033p/houc/datasets/istella-s-letor/sample/vali_MiR_1_MiD_10_PerQ_PreSort_QS_StandardScaler.np', allow_pickle=True)
 val_stack = []
 for i in range(len(val)):
     original_np = val[i][1]
@@ -13,8 +14,10 @@ for i in range(len(val)):
 all_data = np.concatenate(val_stack, axis = 0)
 num_dims = all_data.shape[1]
 
-for i in range(num_dims):
-    plt.hist(all_data[:,i], log=True, bins=100)
-    plt.title('Histogram for dimension {0}'.format(i))
-    plt.savefig('/jet/home/houc/ptranking/job_submit/outlier_img/mslr/dim{0}.png'.format(i))
-    plt.close()
+# for i in range(num_dims):
+plt.hist(all_data[:,174], log=True, bins=100)
+plt.title('Histogram for Istella-validation dim=174'.format(i), fontsize=18)
+plt.xlabel('Feature value', fontsize=18)
+plt.ylabel('Frequency', fontsize=18)
+plt.savefig('/jet/home/houc/ptranking/job_submit/outlier.png'.format(i), dpi=1200, pad_inches='tight')
+plt.close()

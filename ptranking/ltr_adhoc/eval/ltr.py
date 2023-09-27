@@ -158,7 +158,7 @@ class LTREvaluator():
                   eval_dict,
                   data_dict,
                   fold_k,
-                  subset_train=list(range(1000))):
+                  shrink):
         """
         Load the dataset correspondingly.
         :param eval_dict:
@@ -178,6 +178,9 @@ class LTREvaluator():
                                  presort=data_dict['train_presort'],
                                  data_dict=data_dict,
                                  eval_dict=input_eval_dict)
+        print('Previous train size', len(_train_data.list_torch_Qs))
+        _train_data.list_torch_Qs = _train_data.list_torch_Qs[:int(len(_train_data.list_torch_Qs) * shrink)]
+        print('New train size', len(_train_data.list_torch_Qs))
         train_letor_sampler = LETORSampler(
             data_source=_train_data,
             rough_batch_size=data_dict['train_rough_batch_size'])
@@ -418,13 +421,13 @@ class LTREvaluator():
             if argobj.pretrainer == 'SimSiam':
                 eval_dict['dir_output'] = os.path.join(
                     eval_dict['dir_output'],
-                    'SimSiam_{0}{1}_{2}_dim_{5}_layers_{6}_to_finetune_{3}_trial{4}_shrink{7}/'.format(
+                    'SimSiam_{0}{1}_{2}_dim_{5}_layers_{6}_to_finetune_{3}_trial{4}_shrink0.01/'.format(
                         argobj.aug_type, argobj.aug_percent, argobj.pretrain_lr,
                         argobj.finetune_lr, argobj.trial_num, argobj.dim, argobj.layers, argobj.shrink))
             elif argobj.pretrainer == 'SimRank' or argobj.pretrainer == 'SimCLR' or argobj.pretrainer == 'SimSiamRank' or argobj.pretrainer == 'RankNeg':
                 eval_dict['dir_output'] = os.path.join(
                     eval_dict['dir_output'],
-                    '{9}_{0}{1}_{2}_dim_{5}_layers_{6}_to_finetune_{3}_temp{7}_mix{8}_trial{4}_shrink{10}_blend{11}_scale{12}_gumbel{13}_numnegatives{14}/'.format(
+                    '{9}_{0}{1}_{2}_dim_{5}_layers_{6}_to_finetune_{3}_temp{7}_mix0.0_trial{4}_shrink0.01_blend{11}_scale{12}_gumbel{13}_numnegatives{14}/'.format(
                         argobj.aug_type, argobj.aug_percent, argobj.pretrain_lr,
                         argobj.finetune_lr, argobj.trial_num, argobj.dim, argobj.layers, argobj.temperature, argobj.mix, argobj.pretrainer, argobj.shrink, argobj.blend, argobj.scale, argobj.gumbel, argobj.num_negatives))
             else:
@@ -457,6 +460,7 @@ class LTREvaluator():
             sf_para_dict['lr'] = argobj.finetune_lr
             model_para_dict['freeze'] = argobj.freeze
             model_para_dict['probe_layers'] = argobj.probe_layers
+            model_para_dict['gumbel'] = argobj.gumbel
             if argobj.aug_type != 'none' or argobj.freeze:
                 model_para_dict['model_path'] = eval_dict['dir_output']
         print(eval_dict)
@@ -516,8 +520,12 @@ class LTREvaluator():
             ranker.init(
             )  # initialize or reset with the same random initialization
             print('Initialized the model, loading data', file=sys.stderr)
-            train_data, test_data, vali_data = self.load_data(
-                eval_dict, data_dict, fold_k)
+            if model_id not in ['SimRank', 'SimSiam', 'SimCLR', 'SimSiamRank', 'RankNeg']:
+                train_data, test_data, vali_data = self.load_data(
+                    eval_dict, data_dict, fold_k, argobj.shrink)
+            else:
+                train_data, test_data, vali_data = self.load_data(
+                    eval_dict, data_dict, fold_k, 1.0)
             if do_vali:
                 vali_tape = ValidationTape(fold_k=fold_k,
                                            num_epochs=epochs,
@@ -534,32 +542,10 @@ class LTREvaluator():
             if not do_vali and loss_guided:
                 opt_loss_tape = OptLossTape(gpu=self.gpu)
 
-            small_train_set = []
-            original_size = 0
-            original_num_batches = 0
-            for batch_ids, batch_q_doc_vectors, batch_std_labels in train_data:
-                small_train_set.append(
-                    (batch_ids, batch_q_doc_vectors, batch_std_labels))
-                original_size += len(batch_ids)
-                original_num_batches += 1
-            print('Original train size', original_size, 'Batches', original_num_batches, 'Avg batch size', original_size/original_num_batches)
-
-            print(model_id, file=sys.stderr)
-            if model_id not in ['SimRank', 'SimSiam', 'SimCLR', 'SimSiamRank', 'RankNeg']:
-                print('Shrinking set by {0}'.format(argobj.shrink), file=sys.stderr)
-                small_train_set = small_train_set[:int(len(small_train_set) * argobj.shrink)]
-            new_size = 0
-            new_num_batches = 0
-            for batch_ids, batch_q_doc_vectors, batch_std_labels in small_train_set:
-                new_size += len(batch_ids)
-                new_num_batches += 1
-            
-            print('New train size', new_size, 'New batches', new_num_batches, 'Avg batch size', new_size/new_num_batches)
-            print('Starting training', file=sys.stderr)
             best_metric_val = None
             for epoch_k in range(1, epochs + 1):
                 torch_fold_k_epoch_k_loss, stop_training = ranker.train(
-                        train_data=small_train_set,
+                        train_data=train_data,
                         epoch_k=epoch_k,
                         presort=train_presort,
                         label_type=label_type)
@@ -571,7 +557,7 @@ class LTREvaluator():
                     train_loss_metric_val = torch_fold_k_epoch_k_loss.squeeze(
                         -1).data.cpu().numpy()
                     torch_train_metric_value = ranker.validation(
-                        vali_data=small_train_set,
+                        vali_data=train_data,
                         k=vali_k,
                         device=ranker.device,
                         vali_metric=vali_metric,
@@ -603,7 +589,7 @@ class LTREvaluator():
                     if best_metric_val is None or val_ndcg_print > best_metric_val:
                         best_metric_val = val_ndcg_print
                         ranker.save(dir=self.dir_run + '/',
-                                    name='_'.join(['net_params_best', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials)]))
+                                    name='_'.join(['net_params_best', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials), str(argobj.shrink)]))
                     # with summary_writer.as_default():
                     #     tf.summary.scalar('train_loss',
                     #                     train_loss_metric_val,
@@ -631,12 +617,14 @@ class LTREvaluator():
                     dir_run=self.dir_run,
                     train_data_length=train_data.__len__())
             if model_id not in ['SimSiam', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg']:
-                ranker.load(self.dir_run + '/' + '_'.join(['net_params_best', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials)]),
+                ranker.load(self.dir_run + '/' + '_'.join(['net_params_best', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials), str(argobj.shrink)]),
                             device=self.device)
             else:
                 ranker.load(self.dir_run + '/' + '_'.join(['net_params']) +
                         '.pkl',
                         device=self.device)
+            
+            print('Finetuned model saved in', '_'.join(['net_params_best', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials), str(argobj.shrink)]), file=sys.stderr)
             
             # if do_vali: # using the fold-wise optimal model for later testing based on validation data
             #     ranker.load(modeldir, device=self.device)
@@ -667,43 +655,43 @@ class LTREvaluator():
                 curr_filters = istella_filters
 
             if model_id not in ['SimRank', 'SimSiam', 'SimCLR', 'SimSiamRank', 'RankNeg']:
-                print('Train results')
-                ndcgs, ks = traintape.fold_evaluation(model_id=model_id,
-                                        ranker=ranker,
-                                        test_data=small_train_set,
-                                        max_label=max_label,
-                                        fold_k=fold_k)
-                metrics_dict['train/ndcg@3'] = ndcgs[1]
-                metrics_dict['train/ndcg@5'] = ndcgs[2]
-                metrics_dict['train/ndcg@10'] = ndcgs[3]
-                metrics_dict['train/ndcg@20'] = ndcgs[4]
-                if do_vali:
-                    print('Val results')
-                    ndcgs, ks = cv_tape.fold_evaluation(model_id=model_id,
-                                            ranker=ranker,
-                                            test_data=vali_data,
-                                            max_label=max_label,
-                                            fold_k=fold_k)
+                # print('Train results')
+                # ndcgs, ks = traintape.fold_evaluation(model_id=model_id,
+                #                         ranker=ranker,
+                #                         test_data=small_train_set,
+                #                         max_label=max_label,
+                #                         fold_k=fold_k)
+                # metrics_dict['train/ndcg@3'] = ndcgs[1]
+                # metrics_dict['train/ndcg@5'] = ndcgs[2]
+                # metrics_dict['train/ndcg@10'] = ndcgs[3]
+                # metrics_dict['train/ndcg@20'] = ndcgs[4]
+                # if do_vali:
+                    # print('Val results')
+                    # ndcgs, ks = cv_tape.fold_evaluation(model_id=model_id,
+                    #                         ranker=ranker,
+                    #                         test_data=vali_data,
+                    #                         max_label=max_label,
+                    #                         fold_k=fold_k)
                     
-                    summary_writer.add_hparams(hparam_dict, {'hparam/val/ndcg@3': ndcgs[1], 'hparam/val/ndcg@5': ndcgs[2], 'hparam/val/ndcg@10': ndcgs[3],'hparam/val/ndcg@20': ndcgs[4]})
-                    metrics_dict['val/ndcg@3'] = ndcgs[1]
-                    metrics_dict['val/ndcg@5'] = ndcgs[2]
-                    metrics_dict['val/ndcg@10'] = ndcgs[3]
-                    metrics_dict['val/ndcg@20'] = ndcgs[4]
+                    # summary_writer.add_hparams(hparam_dict, {'hparam/val/ndcg@3': ndcgs[1], 'hparam/val/ndcg@5': ndcgs[2], 'hparam/val/ndcg@10': ndcgs[3],'hparam/val/ndcg@20': ndcgs[4]})
+                    # metrics_dict['val/ndcg@3'] = ndcgs[1]
+                    # metrics_dict['val/ndcg@5'] = ndcgs[2]
+                    # metrics_dict['val/ndcg@10'] = ndcgs[3]
+                    # metrics_dict['val/ndcg@20'] = ndcgs[4]
 
-                    print('Overall robust val results')
-                    ndcgs, ks = cv_tape.fold_evaluation(model_id=model_id,
-                                        ranker=ranker,
-                                        test_data=vali_data,
-                                        max_label=max_label,
-                                        fold_k=fold_k,
-                                        filters=curr_filters)
+                    # print('Overall robust val results')
+                    # ndcgs, ks = cv_tape.fold_evaluation(model_id=model_id,
+                    #                     ranker=ranker,
+                    #                     test_data=vali_data,
+                    #                     max_label=max_label,
+                    #                     fold_k=fold_k,
+                    #                     filters=curr_filters)
 
-                    summary_writer.add_hparams(hparam_dict, {'hparam/val/robust-ndcg@3': ndcgs[1], 'hparam/val/robust-ndcg@5': ndcgs[2], 'hparam/val/robust-ndcg@10': ndcgs[3],'hparam/val/robust-ndcg@20': ndcgs[4]})
-                    metrics_dict['val/robust-ndcg@3'] = ndcgs[1]
-                    metrics_dict['val/robust-ndcg@5'] = ndcgs[2]
-                    metrics_dict['val/robust-ndcg@10'] = ndcgs[3]
-                    metrics_dict['val/robust-ndcg@20'] = ndcgs[4]
+                    # summary_writer.add_hparams(hparam_dict, {'hparam/val/robust-ndcg@3': ndcgs[1], 'hparam/val/robust-ndcg@5': ndcgs[2], 'hparam/val/robust-ndcg@10': ndcgs[3],'hparam/val/robust-ndcg@20': ndcgs[4]})
+                    # metrics_dict['val/robust-ndcg@3'] = ndcgs[1]
+                    # metrics_dict['val/robust-ndcg@5'] = ndcgs[2]
+                    # metrics_dict['val/robust-ndcg@10'] = ndcgs[3]
+                    # metrics_dict['val/robust-ndcg@20'] = ndcgs[4]
                 # print('Individual robust val results')
                 # for curr_filter in filters:
                 #     print('Robust dim {0}'.format(curr_filter[0]))
@@ -739,7 +727,7 @@ class LTREvaluator():
                 metrics_dict['test/robust-ndcg@10'] = ndcgs[3]
                 metrics_dict['test/robust-ndcg@20'] = ndcgs[4]
 
-                summary_writer.add_hparams(hparam_dict, {'hparam/test/robust-ndcg@3': ndcgs[1], 'hparam/test/robust-ndcg@5': ndcgs[2], 'hparam/test/robust-ndcg@10': ndcgs[3],'hparam/test/robust-ndcg@20': ndcgs[4]})
+                # summary_writer.add_hparams(hparam_dict, {'hparam/test/robust-ndcg@3': ndcgs[1], 'hparam/test/robust-ndcg@5': ndcgs[2], 'hparam/test/robust-ndcg@10': ndcgs[3],'hparam/test/robust-ndcg@20': ndcgs[4]})
 
                 # print('Individual robust val results')
                 # for curr_filter in filters:
@@ -754,7 +742,7 @@ class LTREvaluator():
                 with open(self.dir_run + 'hparam.pickle', 'wb') as handle:
                     pickle.dump(hparam_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
                 
-                with open(self.dir_run + '_'.join(['metrics', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials)]) + '.pickle', 'wb') as handle:
+                with open(self.dir_run + '_'.join(['metrics', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials), str(argobj.shrink)]) + '.pickle', 'wb') as handle:
                     pickle.dump(metrics_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         print('Tensorboard dir: ' + log_dir, file=sys.stderr)

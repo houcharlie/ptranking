@@ -291,7 +291,7 @@ class ResNetBlock(nn.Module):
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
         self.bn1 = LTRBatchNorm(in_dim, momentum=0.1, affine=True, track_running_stats=False)
         self.ff1 = nn.Linear(in_dim, in_dim)
-        self.relu = nn.ReLU()
+        self.relu = nn.GELU()
         self.dropout1 = nn.Dropout(0.1)
         self.ff2 = nn.Linear(in_dim, in_dim)
         self.dropout2 = nn.Dropout(0.1)
@@ -309,6 +309,49 @@ class ResNetBlock(nn.Module):
         out += identity
         return out
 
+class OverparamLinear(nn.Module):
+    def __init__(
+        self,
+        in_dim: int,
+        embed_dim: int
+    ) -> None:
+        super().__init__()
+        # Both self.conv1 and self.downsample layers downsample the input when stride != 1
+        self.ff1 = nn.Linear(in_dim, embed_dim)
+        self.ff2 = nn.Linear(embed_dim, 1)
+
+
+    def forward(self, x):
+        out = self.ff1(x)
+        out = self.ff2(out)
+        return out
+
+class ResNetOutput(nn.Module):
+    def __init__(
+        self,
+        in_dim: int,
+        out_dim: int
+    ) -> None:
+        super().__init__()
+        # Both self.conv1 and self.downsample layers downsample the input when stride != 1
+        self.ff1 = nn.Linear(in_dim, in_dim)
+        self.bn1 = LTRBatchNorm(in_dim, momentum=0.1, affine=True, track_running_stats=False)
+        self.relu = nn.ReLU()
+        self.ff2 = nn.Linear(in_dim, out_dim)
+        self.dropout1 = nn.Dropout(0.1)
+        self.dropout2 = nn.Dropout(0.1)
+
+    def forward(self, x):
+        identity = x
+        out = self.bn1(x)
+        out = self.dropout1(out)
+        out = self.ff1(out)
+        out = self.dropout2(out)
+        out = self.relu(out)
+        out = out + identity
+        out = self.ff2(out)
+        return out
+
 
 def get_resnet(data_dim, hidden_dim=130, dropout=0.1):
     ff_net = nn.Sequential()
@@ -316,7 +359,7 @@ def get_resnet(data_dim, hidden_dim=130, dropout=0.1):
     n_init = nn.Linear(data_dim, hidden_dim, bias=False)
     ff_net.add_module('_'.join(['input_mapping']), n_init)
 
-    num_layers = 10
+    num_layers = 3
     for i in range(num_layers):
         # ff_net.add_module('_'.join(['dr', str(i)]), nn.Dropout(dropout))
         nr_block = ResNetBlock(hidden_dim)
@@ -348,8 +391,7 @@ def get_stacked_FFNet(ff_dims=None, AF=None, TL_AF=None, apply_tl_af=False, drop
             prior_dim, ff_i_dim = ff_dims[i - 1], ff_dims[i]
             ff_net.add_module('_'.join(['dr', str(i)]), nn.Dropout(dropout))
             nr_hi = nn.Linear(prior_dim, ff_i_dim)
-            eye_init(nr_hi.weight)
-            zero_init(nr_hi.bias)
+            nr_init(nr_hi.weight)
             ff_net.add_module('_'.join(['ff', str(i + 1)]), nr_hi)
 
             if BN:  # before applying activation
@@ -367,8 +409,8 @@ def get_stacked_FFNet(ff_dims=None, AF=None, TL_AF=None, apply_tl_af=False, drop
     # last layer
     penultimate_dim, out_dim = ff_dims[-2], ff_dims[-1]
     nr_hn = nn.Linear(penultimate_dim, out_dim)
-    eye_init(nr_hn.weight)
-    zero_init(nr_hn.bias)
+    nr_init(nr_hn.weight)
+
     if split_penultimate_layer:
         tail_net = nn.Sequential()
         tail_net.add_module('_'.join(['ff', str(num_layers)]), nr_hn)

@@ -60,3 +60,12 @@ outputss.txt
 *rankneg_study*
 *synthesis_study*
 *variance_study*
+*job_submit*
+*fraction*
+*tsne*
+*e2e_eval.py*
+*eval_checkpoint.py*
+*plot_embeddings.py*
+*calc_vals.py*
+*gbdt.txt*
+*/ptranking/job_submit/*

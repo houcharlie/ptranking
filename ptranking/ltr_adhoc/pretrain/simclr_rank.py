@@ -255,7 +255,7 @@ class SimCLR(NeuralRanker):
                 all_correct += correct
                 all_attempts += attempts
             batches_processed += 1
-        print("---One epoch time %s seconds ---" % (time.time() - start_time), file=sys.stderr)
+        print("---One epoch time %s seconds ---" % (time.time() - start_time))
             # print(batches_processed, file=sys.stderr)
         total_norm = 0.
         for p in self.point_sf.parameters():
@@ -297,13 +297,9 @@ class SimCLR(NeuralRanker):
         @param kwargs:
         @return:
         '''
+
         logits_qg, labels_qg = batch_preds
-        # lambda_loss = self.loss(logits_qg, labels_qg)
-        # pred = torch.argmax(logits_qg, dim=1)
-        # correct = torch.sum(pred == labels_qg)
-        # total_num = pred.shape[0]
-
-
+        #lambda_loss = self.loss(logits_qg, labels_qg)
         loss = self.loss_no_reduction(logits_qg.permute(0, 2, 1), labels_qg)
         loss_reduced = loss.mean(dim = 1)
         lambda_loss = loss_reduced.mean()

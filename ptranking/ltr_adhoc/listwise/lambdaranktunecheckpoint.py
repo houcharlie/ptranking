@@ -14,7 +14,7 @@ import numpy as np
 
 from torch.optim.lr_scheduler import StepLR
 from ptranking.data.data_utils import LABEL_TYPE
-from ptranking.base.utils import get_stacked_FFNet, get_resnet, LTRBatchNorm, ResNetBlock, ResNetOutput
+from ptranking.base.utils import get_stacked_FFNet, get_resnet, LTRBatchNorm
 from ptranking.metric.metric_utils import get_delta_ndcg
 from ptranking.base.adhoc_ranker import AdhocNeuralRanker
 from ptranking.ltr_adhoc.eval.parameter import ModelParameter
@@ -34,14 +34,13 @@ class LambdaRankTune(AdhocNeuralRanker):
     Learning to Rank with Nonsmooth Cost Functions. In Proceedings of NIPS conference. 193–200.
     '''
     def __init__(self, sf_para_dict=None, model_para_dict=None, gpu=False, device=None):
-        super(LambdaRankTune, self).__init__(id='LambdaRankTune', sf_para_dict=sf_para_dict, gpu=gpu, device=device, weight_decay=1e-4)
+        super(LambdaRankTune, self).__init__(id='LambdaRankTune', sf_para_dict=sf_para_dict, gpu=gpu, device=device, weight_decay=1e-2)
         self.sigma = model_para_dict['sigma']
         self.model_load_ckpt = model_para_dict['model_path']
         self.linear_path = model_para_dict['linear_path']
         self.epochs = 0
         self.freeze = model_para_dict['freeze']
         self.probe_layers = model_para_dict['probe_layers']
-        self.weight_decay = model_para_dict['gumbel']
 
     def get_parameters(self):
         all_params = []
@@ -56,70 +55,13 @@ class LambdaRankTune(AdhocNeuralRanker):
         _batch_preds = self.point_sf(batch_q_doc_vectors)
         batch_preds = _batch_preds.view(-1, num_docs) 
         return batch_preds
+    
     def init(self):
-        checkpoint_dir = self.model_load_ckpt
         self.point_sf = self.config_point_neural_scoring_function()
-        
-        # self.point_sf = self.config_point_neural_scoring_function()
-        # if not self.freeze:
-        #     nr_hn = nn.Linear(136, 1)
-        #     self.point_sf.add_module('_'.join(['ff', 'scoring']), nr_hn)
-        #     self.point_sf.to(self.device)
-        # else:
-        #     for i in range(self.probe_layers - 1):
-        #         nr_hn = nn.Linear(136, 136)
-        #         self.point_sf.add_module('_'.join(['ff', 'scoring', str(i)]), nr_hn)
-        #         self.point_sf.add_module('_'.join(['ff', 'scoring', str(i), 'RELU']), nn.ReLU())
-        #     nr_hn = nn.Linear(136, 1)
-        #     self.point_sf.add_module('_'.join(['ff', 'scoring', 'final']), nr_hn)
-        #     self.point_sf.to(self.device)
-
-
+        # nr_hn = nn.Linear(136, 1)
+        # self.point_sf.add_module('_'.join(['ff', 'scoring']), nr_hn)
+        self.point_sf.to(self.device)
         self.config_optimizer()
-        if len(checkpoint_dir) > 0:
-            print('Loading checkpoint...', file=sys.stderr)
-            print(os.path.join(checkpoint_dir, 'net_params_pretrain.pkl'), file=sys.stderr)
-            checkpoint_file_name = os.path.join(checkpoint_dir, 'net_params_pretrain')
-            pretrained_dict = torch.load(checkpoint_file_name, map_location=self.device)
-            curr_dict = self.point_sf.state_dict()
-            curr_dict.update(pretrained_dict)
-
-            if 'SimCLR' in self.model_load_ckpt:
-                projector_file_name = os.path.join(checkpoint_dir, 'net_params_pretrainprojector')
-                projector_dict = torch.load(projector_file_name, map_location=self.device)
-                curr_keys = curr_dict.keys()
-                for key in curr_keys:
-                    if key in projector_dict:
-                        print(key)
-                        curr_dict[key] = projector_dict[key]
-            self.point_sf.load_state_dict(curr_dict)
-
-        else:
-            print('No checkpoint', file=sys.stderr)
-
-
-        # if len(checkpoint_dir) > 0:
-        #     print('Loading checkpoint...', file=sys.stderr)
-        #     print(os.path.join(checkpoint_dir, 'net_params_pretrain'), file=sys.stderr)
-        #     checkpoint_file_name = os.path.join(checkpoint_dir, 'net_params_pretrain.pkl')
-        #     pretrained_dict = torch.load(checkpoint_file_name, map_location=self.device)
-        #     pointsf_dict = self.point_sf.state_dict()
-        #     pointsf_dict.update(pretrained_dict)
-        #     self.point_sf.load_state_dict(pointsf_dict)
-        # else:
-        #     print('No checkpoint', file=sys.stderr)
-        # self.embedder.train(mode=True)
-        # if self.freeze:
-        #     print('FROZEN')
-        #     self.embedder.eval()
-        #     for name, param in self.embedder.named_parameters():
-        #         param.requires_grad = False
-        # if self.freeze:
-        #     print('FROZEN with ', self.probe_layers)
-        #     for name, param in self.point_sf.named_parameters():
-        #         if 'ff_scoring' not in name:
-        #             param.requires_grad = False
-        print(self.point_sf)
         self.scheduler = StepLR(optimizer=self.optimizer, step_size=40, gamma=1.)
 
     def config_point_neural_scoring_function(self):
@@ -137,25 +79,13 @@ class LambdaRankTune(AdhocNeuralRanker):
         for i in range(encoder_layers):
             ff_dims.append(h_dim)
         ff_dims.append(out_dim)
-        h_dim = 136
-        point_sf = get_resnet(num_features, h_dim)
-
+        print(ff_dims)
         # point_sf = get_stacked_FFNet(ff_dims=ff_dims, AF=AF, TL_AF=TL_AF, apply_tl_af=apply_tl_af, dropout=dropout,
         #                              BN=BN, bn_type=bn_type, bn_affine=bn_affine, device=self.device)
-        if 'SimCLR' in self.model_load_ckpt:
-            point_sf.add_module('_'.join(['project', 'linear', str(0)]), nn.Linear(h_dim, h_dim))
-            point_sf.add_module('_'.join(['project', 'relu', str(0)]), nn.ReLU())
-
-        scoring_adapter = nn.Sequential()
-        for i in range(self.probe_layers - 1):
-            nr_block =  nn.Linear(h_dim, h_dim)
-            scoring_adapter.add_module('_'.join(['ff', 'scoring', str(i + 1)]), nr_block)
-            scoring_adapter.add_module('_'.join(['ff', 'scoring', 'act', str(i+1)]), nn.ReLU())
-        scoring_layer = nn.Linear(h_dim, 1)
-        scoring_adapter.add_module('scoring_layer', scoring_layer)
-
-        
-        point_sf.add_module('scoring_adapter', scoring_adapter)
+        h_dim = 120
+        point_sf = get_resnet(num_features, h_dim)
+        nr_hn = nn.Linear(h_dim, 1)
+        point_sf.add_module('_'.join(['ff', 'scoring', 'final']), nr_hn)
         point_sf.to(self.device)
         return point_sf
 
@@ -193,29 +123,12 @@ class LambdaRankTune(AdhocNeuralRanker):
 
         self.optimizer.zero_grad()
         batch_loss.backward()
-        # torch.nn.utils.clip_grad_norm_(self.point_sf.parameters(), 1.0)
+        torch.nn.utils.clip_grad_norm_(self.point_sf.parameters(), 1.0)
         self.optimizer.step()
         
 
         return batch_loss
-    # def custom_loss_function(self, batch_preds, batch_std_labels, **kwargs):
-    #     '''
-    #     @param batch_preds: [batch, ranking_size] each row represents the relevance predictions for documents associated with the same query
-    #     @param batch_std_labels: [batch, ranking_size] each row represents the standard relevance grades for documents associated with the same query
-    #     @param kwargs:
-    #     @return:
-    #     '''
-    #     batch_p_ij, batch_std_p_ij = get_pairwise_comp_probs(batch_preds=batch_preds, batch_std_labels=batch_std_labels,
-    #                                                          sigma=self.sigma)
-    #     _batch_loss = F.binary_cross_entropy(input=torch.triu(batch_p_ij, diagonal=1),
-    #                                          target=torch.triu(batch_std_p_ij, diagonal=1), reduction='none')
-    #     batch_loss = torch.sum(torch.sum(_batch_loss, dim=(2, 1)))
-
-    #     self.optimizer.zero_grad()
-    #     batch_loss.backward()
-    #     self.optimizer.step()
-
-    #     return batch_loss
+    
     def train_mode(self):
         self.point_sf.train(mode=True)
     
@@ -231,7 +144,14 @@ class LambdaRankTune(AdhocNeuralRanker):
 
     def load(self, file_model, **kwargs):
         device = kwargs['device']
-        self.point_sf.load_state_dict(torch.load(file_model + '.pkl', map_location=device))
+        state_dict = torch.load(file_model + '.pkl', map_location=device)
+        # print(state_dict.keys())
+        # if 'ff_scoring_final.weight' in state_dict:
+        #     state_dict['ff_scoring.weight'] = state_dict['ff_scoring_final.weight']
+        #     state_dict['ff_scoring.bias'] = state_dict['ff_scoring_final.bias']
+        #     del state_dict['ff_scoring_final.weight']
+        #     del state_dict['ff_scoring_final.bias']
+        self.point_sf.load_state_dict(state_dict)
     
     def train(self, train_data, epoch_k=None, **kwargs):
         '''
@@ -240,28 +160,22 @@ class LambdaRankTune(AdhocNeuralRanker):
         self.train_mode()
         if not self.freeze:
             if self.epochs < 100:
-                # self.point_sf.eval()
-                # self.point_sf.scoring_adapter.train(mode=True)
+                self.point_sf.eval()
                 for name, param in self.point_sf.named_parameters():
-                    param.requires_grad = False
-                for name, param in self.point_sf.scoring_adapter.named_parameters():
-                    param.requires_grad = True
+                    if 'ff_scoring' not in name:
+                        param.requires_grad = False
+                    else:
+                        param.requires_grad = True
             else:
                 for name, param in self.point_sf.named_parameters():
                     param.requires_grad = True
-        else:
-            self.point_sf.eval()
-            self.point_sf.scoring_adapter.train(mode=True)
-            for name, param in self.point_sf.named_parameters():
-                param.requires_grad = False
-            for name, param in self.point_sf.scoring_adapter.named_parameters():
-                param.requires_grad = True
                 
         assert 'label_type' in kwargs and 'presort' in kwargs
         label_type, presort = kwargs['label_type'], kwargs['presort']
         num_queries = 0
         epoch_loss = torch.tensor([0.0], device=self.device)
         batches_processed = 0
+        size_of_train = len(train_data)
         # self.optimizer.zero_grad()
         
         

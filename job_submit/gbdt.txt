@@ -1,4 +1,4 @@
 
-0.001 /jet/home/houc/ptranking/testing/ltr_tree/json/mslr/
-0.001 /jet/home/houc/ptranking/testing/ltr_tree/json/yahoo/
-0.001 /jet/home/houc/ptranking/testing/ltr_tree/json/istella/
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/mslr/ 0 0
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/yahoo/ 0 0
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/istella/ 0 0

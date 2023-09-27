@@ -1,19 +1,19 @@
 {
   "DataSetting": {
     "data_id":"Set1",
-    "dir_data":"/ocean/projects/cis230033p/houc/datasets/yahoo/ltrc_yahoo/",
+    "dir_data":"/ocean/projects/cis230033p/houc/datasets/yahoo/ltrc_yahoo/shift_sparse_t=4.0_tau=4.25/",
     "min_docs":[10],
     "min_rele":[1],
     "scaler_id":"StandardScaler",
 
     "binary_rele":[false],
     "unknown_as_zero":[false],
-    "tr_batch_size":[100]
+    "tr_batch_size":[1000]
   },
 
   "EvalSetting": {
-    "dir_output":"/ocean/projects/cis230033p/houc/ranking/set1/augmentations/",
-    "epochs":100,
+    "dir_output":"/ocean/projects/cis230033p/houc/ranking/set1/shift_sparse_t=4.0_tau=4.25/",
+    "epochs":200,
 
     "do_validation":true,
     "vali_metric": "nDCG",

@@ -16,6 +16,8 @@ from absl import logging
 from torch.nn.init import eye_ as eye_init
 from torch.nn.init import zeros_ as zero_init
 from torch.nn.init import xavier_normal_ as nr_init
+import time
+import sys
 class SimSiam(NeuralRanker):
     ''' SimSiam '''
     """
@@ -63,9 +65,6 @@ class SimSiam(NeuralRanker):
         nn1 = nn.Linear(prev_dim, prev_dim, bias=False)
         nn2 = nn.Linear(prev_dim, prev_dim, bias=False)
         nn3 = nn.Linear(prev_dim, dim, bias=False)
-        nr_init(nn1.weight)
-        nr_init(nn2.weight)
-        nr_init(nn3.weight)
         projector = nn.Sequential(nn1,
                                   nn.BatchNorm1d(prev_dim),
                                   nn.ReLU(), # first layer
@@ -79,8 +78,6 @@ class SimSiam(NeuralRanker):
         pred_dim = dim // 4
         nn4 = nn.Linear(dim, pred_dim, bias=False)
         nn5 = nn.Linear(pred_dim, dim)
-        nr_init(nn4.weight)
-        nr_init(nn5.weight)
         predictor = nn.Sequential(nn4,
                                     nn.BatchNorm1d(pred_dim),
                                     nn.ReLU(), # hidden layer
@@ -111,7 +108,7 @@ class SimSiam(NeuralRanker):
         for i in range(encoder_layers):
             ff_dims.append(h_dim)
         ff_dims.append(out_dim)
-        h_dim = 100
+        h_dim = 136
         # point_sf = get_stacked_FFNet(ff_dims=ff_dims, AF=AF, TL_AF=TL_AF, apply_tl_af=apply_tl_af, dropout=dropout,
         #                              BN=BN, bn_type=bn_type, bn_affine=bn_affine, device=self.device)
         point_sf = get_resnet(num_features, h_dim)
@@ -196,7 +193,7 @@ class SimSiam(NeuralRanker):
         # import ipdb; ipdb.set_trace()
         self.optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.point_sf.parameters(), 1.0)
+        # torch.nn.utils.clip_grad_norm_(self.point_sf.parameters(), 1.0)
         self.optimizer.step()
         return loss
     
@@ -257,10 +254,9 @@ class SimSiam(NeuralRanker):
         num_queries = 0
         epoch_loss = torch.tensor([0.0], device=self.device)
         batches_processed = 0
-        size_of_train_data = len(train_data)
         # self.optimizer.zero_grad()
         
-        
+        start_time = time.time()
         for batch_ids, batch_q_doc_vectors, batch_std_labels in train_data: # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
             num_queries += len(batch_ids)
             if self.gpu: batch_q_doc_vectors, batch_std_labels = batch_q_doc_vectors.to(self.device), batch_std_labels.to(self.device)
@@ -274,7 +270,7 @@ class SimSiam(NeuralRanker):
             else:
                 epoch_loss += batch_loss.item()
             batches_processed += 1
-        
+        print("---One epoch time %s seconds ---" % (time.time() - start_time), file=sys.stderr)
         # self.optimizer.step()
         total_norm = 0.
         for p in self.point_sf.parameters():

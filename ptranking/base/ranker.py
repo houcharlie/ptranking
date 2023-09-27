@@ -229,17 +229,15 @@ class Evaluator():
                 keep_indices = set()
                 for i in range(batch_q_doc_vectors.shape[0]):
                     for j in range(len(filters)):
-                        curridx = filters[j][0]
-                        thresholds = filters[j][1]
-                        for threshold in thresholds:
-                            direction = threshold[1]
-                            val_threshold = threshold[0]
-                            if direction > 0:
-                                if torch.any((batch_q_doc_vectors[i, :, curridx] > val_threshold).squeeze()):
-                                    keep_indices.add(i)
-                            else:
-                                if torch.any((batch_q_doc_vectors[i, :, curridx] < val_threshold).squeeze()):
-                                    keep_indices.add(i)
+                        direction = filters[j][0]
+                        curridx = filters[j][1]
+                        val_threshold = filters[j][2]
+                        if direction > 0:
+                            if torch.any((batch_q_doc_vectors[i, :, curridx] > val_threshold).squeeze()):
+                                keep_indices.add(i)
+                        else:
+                            if torch.any((batch_q_doc_vectors[i, :, curridx] < val_threshold).squeeze()):
+                                keep_indices.add(i)
                 
                 batch_q_doc_vector_filter = batch_q_doc_vectors[list(keep_indices), :, :]
                 batch_q_doc_vectors = batch_q_doc_vector_filter
@@ -556,6 +554,7 @@ class NeuralRanker(Evaluator):
         '''
         Configure the optimizer correspondingly.
         '''
+        print('Current weight decay', self.weight_decay)
         if 'Adam' == self.opt:
             self.optimizer = optim.Adam(self.get_parameters(), lr = self.lr, weight_decay = self.weight_decay)
         elif 'RMS' == self.opt:

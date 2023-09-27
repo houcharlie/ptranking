@@ -138,7 +138,7 @@ if __name__ == '__main__':
     parser.add_argument('-finetune_only', type=int, help='no pretrain')
 
     ''' finetune_trial '''
-    parser.add_argument('-finetune_trials', type=int, help='finetune_trials')
+    parser.add_argument('-finetune_trials', type=float, help='finetune_trials')
 
     argobj = parser.parse_args()
     

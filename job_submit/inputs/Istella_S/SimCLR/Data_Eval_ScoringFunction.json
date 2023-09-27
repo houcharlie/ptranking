@@ -8,12 +8,12 @@
 
     "binary_rele":[false],
     "unknown_as_zero":[false],
-    "tr_batch_size":[200000]
+    "tr_batch_size":[2000]
   },
 
   "EvalSetting": {
-    "dir_output":"/ocean/projects/cis230033p/houc/ranking/istella/augmentations/",
-    "epochs":600,
+    "dir_output":"/ocean/projects/cis230033p/houc/ranking/istella/iclr/",
+    "epochs":20,
     "do_validation":true,
     "vali_metric": "nDCG",
     "vali_k":5,
