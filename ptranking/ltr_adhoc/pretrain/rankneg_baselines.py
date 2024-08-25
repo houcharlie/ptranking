@@ -9,9 +9,9 @@ import sys
 import math
 import time
 from itertools import product
-from ptranking.base.utils import get_stacked_FFNet, get_resnet, LTRBatchNorm
+from ptranking.base.utils import get_stacked_FFNet, get_resnet
 from ptranking.base.ranker import NeuralRanker
-from ptranking.ltr_adhoc.pretrain.augmentations import zeroes, qgswap, gaussian, categorical_augment
+from ptranking.ltr_adhoc.pretrain.augmentations import zeroes, qgswap, gaussian
 from ptranking.data.data_utils import LABEL_TYPE
 from ptranking.ltr_adhoc.eval.parameter import ModelParameter
 from ptranking.ltr_adhoc.util.lambda_utils import get_pairwise_comp_probs
@@ -20,35 +20,7 @@ import torch.nn.functional as F
 from ptranking.metric.metric_utils import get_delta_ndcg
 from torch.nn.init import eye_ as eye_init
 from torch.nn.init import zeros_ as zero_init
-from ptranking.data.binary_features import mslr_binary_features, yahoo_binary_features, istella_binary_features
 
-
-class ResNetBlock(nn.Module):
-    def __init__(
-        self,
-        in_dim: int,
-    ) -> None:
-        super().__init__()
-        # Both self.conv1 and self.downsample layers downsample the input when stride != 1
-        self.bn1 = LTRBatchNorm(in_dim, momentum=0.1, affine=True, track_running_stats=False)
-        self.ff1 = nn.Linear(in_dim, in_dim)
-        self.relu = nn.ReLU()
-        self.dropout1 = nn.Dropout(0.1)
-        self.ff2 = nn.Linear(in_dim, in_dim)
-        self.dropout2 = nn.Dropout(0.1)
-
-
-    def forward(self, x):
-        identity = x
-        out = self.bn1(x)
-        out = self.ff1(out)
-        out = self.relu(out)
-        out = self.dropout1(out)
-        out = self.ff2(out)
-        out = self.dropout2(out)
-
-        out += identity
-        return out
 class RankNeg(NeuralRanker):
 
     def __init__(self,
@@ -68,7 +40,7 @@ class RankNeg(NeuralRanker):
         self.aug_type = model_para_dict['aug_type']
         self.temperature = model_para_dict['temp']
         self.mix = model_para_dict['mix']
-        self.sigma = model_para_dict['blend']
+        self.blend = model_para_dict['blend']
         self.scale = model_para_dict['scale']
         self.gumbel = model_para_dict['gumbel']
         self.num_negatives = model_para_dict['num_negatives']
@@ -82,187 +54,156 @@ class RankNeg(NeuralRanker):
         elif self.aug_type == 'gaussian':
             self.augmentation = gaussian
 
-    def get_resnet(self, data_dim, hidden_dim=130, dropout=0.1):
-        ff_net = nn.Sequential()
-        n_init = nn.Linear(data_dim, hidden_dim, bias=False)
-        ff_net.add_module('_'.join(['input_mapping']), n_init)
-
-        num_layers = 3
-        for i in range(num_layers):
-            nr_block = ResNetBlock(hidden_dim)
-            ff_net.add_module('_'.join(['resnet', str(i + 1)]), nr_block)
-        ff_net.add_module('_'.join(['bn_resnet']), LTRBatchNorm(hidden_dim, momentum=0.1, affine=True, track_running_stats=False))
-        ff_net.add_module('_'.join(['bn_act']), nn.ReLU())
-        return ff_net
-    
-
     def init(self):
-        self.point_sf, self.projector = self.config_point_neural_scoring_function()
-        self.loss_no_reduction = torch.nn.CrossEntropyLoss(reduction='none').to(self.device)
+        self.point_sf = self.config_point_neural_scoring_function()
+        # VIME-self=============================================================
+        # self.decoder1, self.decoder2 = self.config_head()
+        # VIME-self=============================================================
+        
+        # SubTab =============================================================
+        self.decoder = self.config_head()
+        # SubTab =============================================================
+
+        self.xent_loss = torch.nn.CrossEntropyLoss().to(self.device)
+        self.mse_loss = torch.nn.MSELoss().to(self.device)
+
         self.config_optimizer()
-
-
-
     def get_parameters(self):
-        all_params = []
-        for param in self.point_sf.parameters():
-            all_params.append(param)
-        for param in self.projector.parameters():
-            all_params.append(param)
-        return nn.ParameterList(all_params)
-
+        return self.point_sf.parameters()
     def config_point_neural_scoring_function(self):
-        point_sf, projector = self.ini_pointsf(
+        point_sf = self.ini_pointsf(
             **self.sf_para_dict[self.sf_para_dict['sf_id']])
-        if self.gpu: 
-            point_sf = point_sf.to(self.device)
-            projector = projector.to(self.device)
-        return point_sf, projector
+        if self.gpu: point_sf = point_sf.to(self.device)
+        return point_sf
 
     def ini_pointsf(self, num_features=None, h_dim=100, out_dim=136, num_layers=3, AF='R', TL_AF='S', apply_tl_af=False,
                     BN=True, bn_type=None, bn_affine=False, dropout=0.1):
         '''
         Initialization of a feed-forward neural network
         '''
-        if num_features == 136:
-            dataset = 'mslr'
-            categorical_features = mslr_binary_features
-        elif num_features == 220:
-            dataset = 'istella'
-            categorical_features = istella_binary_features
-        elif num_features == 700:
-            dataset = 'yahoo'
-            categorical_features = yahoo_binary_features
-        else:
-            print('Num features not matching any of the dataasets')
-        self.categorical_features = categorical_features
+        encoder_layers = num_layers
+        ff_dims = [num_features]
+        self.num_features = num_features
+        for i in range(encoder_layers):
+            ff_dims.append(h_dim)
+        ff_dims.append(out_dim)
         h_dim = 136
-        point_sf = self.get_resnet(num_features, 136)
-        projector = nn.Sequential(
-            nn.Linear(h_dim, 1)
-        )
-        print('Running PAIRCON.......')
 
-        return point_sf, projector
-    def get_pairwise_comp_probs(self, batch_preds, batch_std_labels, sigma=None):
-        '''
-        Get the predicted and standard probabilities p_ij which denotes d_i beats d_j
-        @param batch_preds:
-        @param batch_std_labels:
-        @param sigma:
-        @return:
-        '''
-        # computing pairwise differences w.r.t. predictions, i.e., s_i - s_j
-        # [batch_size, num_docs, 1], [batch_size, 1, num_docs]
-        batch_s_ij = torch.unsqueeze(batch_preds, dim=2) - torch.unsqueeze(batch_preds, dim=1)
-        batch_p_ij = torch.sigmoid(sigma * batch_s_ij)
+        # SubTab =============================================================
+        self.subset_size = num_features // 3
+        self.increment = num_features // 6
+        # point_sf = get_stacked_FFNet(ff_dims=ff_dims, AF=AF, TL_AF=TL_AF, apply_tl_af=apply_tl_af, dropout=dropout,
+        #                              BN=BN, bn_type=bn_type, bn_affine=bn_affine, device=self.device)
+        h_dim = self.subset_size
+        point_sf = get_resnet(self.subset_size, h_dim)
+        # SubTab =============================================================
 
-        # computing pairwise differences w.r.t. standard labels, i.e., S_{ij}
-        batch_std_diffs = torch.unsqueeze(batch_std_labels, dim=2) - torch.unsqueeze(batch_std_labels, dim=1)
-        batch_std_p_ij = torch.sigmoid(sigma * batch_std_diffs)
+        
+        # VIME-self ==========================================================
+        # point_sf = get_resnet(num_features, h_dim)
+        # VIME-self ==========================================================
 
-        return batch_p_ij, batch_std_p_ij
+        return point_sf
+
+
+    def config_head(self):
+        prev_dim = -1
+        for name, param in self.point_sf.named_parameters():
+            if 'ff' in name and 'bias' not in name:
+                prev_dim = param.shape[0]
+        # # VIME-self ==========================================================
+        # decoder1 = nn.Sequential()
+
+        # nr = nn.Linear(prev_dim, self.num_features)
+        # decoder1.add_module('_'.join(['decoder1', str(0)]), nr)
+        # decoder1.add_module('_'.join(['decoder1_act', str(0)]), nn.Sigmoid())
+
+        # decoder2 = nn.Sequential()
+
+        # nr = nn.Linear(prev_dim, self.num_features)
+        # decoder2.add_module('_'.join(['decoder2', str(0)]), nr)
+        # decoder2.add_module('_'.join(['decoder2_act', str(0)]), nn.Sigmoid())
+
+        # if self.gpu: 
+        #     decoder1 = decoder1.to(self.device)
+        #     decoder2 = decoder2.to(self.device)
+        # return decoder1, decoder2
+
+        # VIME-self ==========================================================
+    
+        # # SubTab =============================================================
+        decoder = nn.Sequential()
+
+        nr = nn.Linear(prev_dim, self.num_features)
+        decoder.add_module('_'.join(['decoder1', str(0)]), nr)
+        decoder.add_module('_'.join(['decoder1_act', str(0)]), nn.Sigmoid())
+        if self.gpu:
+            decoder = decoder.to(self.device)
+        return decoder
+        # # SubTab =============================================================
+    
+
+
+
+    # # VIME-self==========================================================
+    # def forward(self, batch_q_doc_vectors):
+    #     orig_shape = batch_q_doc_vectors.shape
+    #     data_dim = batch_q_doc_vectors.shape[2]
+    #     x_flat = batch_q_doc_vectors.reshape(-1, data_dim)
+    #     corrupted_indices_cont = torch.rand(x_flat.shape).to(self.device)
+    #     corrupted_indices_indicator = (corrupted_indices_cont < self.aug_percent).to(self.device)
+    #     dim0_target, dim1_target = torch.where(corrupted_indices_indicator)
+    #     dim0_source = torch.randint(0, x_flat.shape[0], size=dim0_target.shape).to(self.device)
+    #     aug_x = x_flat.detach().clone().to(self.device)
+    #     aug_x[dim0_target, dim1_target] = x_flat[dim0_source, dim1_target].detach().clone().to(self.device)
+
+    #     z = self.point_sf(aug_x.reshape(orig_shape))
+    #     out_dim = z.shape[2]
+    #     z = z.reshape(-1, out_dim)
+    #     x_reconstruct = self.decoder1(z)
+    #     m_reconstruct = self.decoder2(z)
+
+    #     m = corrupted_indices_indicator.float()
+        
+
+    #     return x_flat, x_reconstruct, m, m_reconstruct
+    
+    # def custom_loss_function(self, batch_preds, batch_std_labels, **kwargs):
+    #     '''
+    #     @param batch_preds: [batch_size, num_docs, num_features]
+    #     @param batch_std_labels: not used
+    #     @param kwargs:
+    #     @return:
+    #     '''
+    #     x, x_, m, m_ = batch_preds
+    #     loss = 1.0 * self.xent_loss(m, m_) + 2.0 * self.mse_loss(x, x_)
+
+    #     self.optimizer.zero_grad()
+    #     loss.backward()
+    #     self.optimizer.step()
+    #     return loss
+    # # VIME-self==========================================================
+
+    # subtab==========================================================
     def forward(self, batch_q_doc_vectors):
         '''
         Forward pass through the scoring function, where each document is scored independently.
         @param batch_q_doc_vectors: [batch_size, num_docs, num_features], the latter two dimensions {num_docs, num_features} denote feature vectors associated with the same query.
         @return:
         '''
-        data_dim, num_docs, num_features = batch_q_doc_vectors.shape
+        num_features = batch_q_doc_vectors.shape[2]
 
-        x1 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device, self.categorical_features)
-        x1 = categorical_augment(x1, self.aug_percent, self.device, self.categorical_features)
-        x2 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device, self.categorical_features)
-        x2 = categorical_augment(x2, self.aug_percent, self.device, self.categorical_features)
+        x1 = self.point_sf(gaussian(zeroes(batch_q_doc_vectors[:,:,:self.subset_size], 0.15, self.device), 0.1, self.device))
+        x2 = self.point_sf(gaussian(zeroes(batch_q_doc_vectors[:,:,self.increment:self.increment + self.subset_size], 0.15, self.device), 0.1, self.device))
+        x3 = self.point_sf(gaussian(zeroes(batch_q_doc_vectors[:,:,2*self.increment:2*self.increment + self.subset_size], 0.15, self.device), 0.1, self.device))
+        x4 = self.point_sf(gaussian(zeroes(batch_q_doc_vectors[:,:,num_features - self.subset_size:], 0.15, self.device), 0.1, self.device))
 
-        embed1 = self.point_sf(x1)
-        embed2 = self.point_sf(x2)
-        z1 = self.projector(embed1)
-        z2 = self.projector(embed2)
+        x1_full = self.decoder(x1)
+        x2_full = self.decoder(x2)
+        x3_full = self.decoder(x3)
+        x4_full = self.decoder(x4)
 
-        s1 = z1.view(data_dim, num_docs)
-        s2 = z2.view(data_dim, num_docs)
-
-        s_concat = torch.cat((s1, s2), dim=1)
-
-        logits_qg, labels_qg = self.paircon_loss(s_concat)
-
-        return logits_qg, labels_qg
-    
-    def paircon_loss(self, s_concat):
-        '''
-        s_concat: [batch_size, 2 * qgsize]
-        '''
-        batch_size = s_concat.shape[0]
-        qg_size = s_concat.shape[1]//2
-        # [batch_size, 2 * qg_size, 2 * qg_size]
-        batch_s_ij = torch.unsqueeze(s_concat, dim=2) - torch.unsqueeze(s_concat, dim=1)
-        # [batch_size, 2 * qg_size, 2 * qg_size]
-        batch_p_ij = torch.sigmoid(self.sigma * batch_s_ij)
-
-
-        # i1, i2 => f(i1), f(i2) (dim d) => scorer(f(i1) concat f(i2)) (scorer is like 3 layers) => 1 dimensional score 
-        # scorer(f(i1) concat f(i2)) (end of second layer output): embed_i1i2
-        # 
-        # Expanding dimensions for broadcasting
-        # batch_p_ij_expanded_ij repeats along the 'k' axis
-        # batch_p_ij_expanded_ik repeats along the 'j' axis
-        # This prepares both tensors for element-wise BCE computation
-
-        batch_p_ij_expanded_ij = batch_p_ij.unsqueeze(3).expand(-1, -1, -1, 2 * qg_size)
-        batch_p_ij_expanded_ik = batch_p_ij.unsqueeze(2).expand(-1, -1, 2 * qg_size, -1)
-        
-        # Asymmetry could avoid mode collapse
-        # s, s', plug into ranking loss, minimize only one end
-
-        # Now compute the binary cross entropy
-        # Note: F.binary_cross_entropy expects input in the form of (input, target),
-        # so we treat one of the expanded tensors as input and the other as target.
-        # The `reduction='none'` argument ensures we keep the full output dimensionality.
-        # The higher, the more similar.
-        # if self.num_negatives == 0:
-        #     epsilon = 1e-12
-        #     p1 = batch_p_ij_expanded_ij
-        #     p2 = batch_p_ij_expanded_ik
-        #     p1 = p1.clamp(min=epsilon, max=1-epsilon)
-        #     p2 = p2.clamp(min=epsilon, max=1-epsilon)
-        #     kl_divergence_p1_p2 = p1 * torch.log(p1 / p2) + (1 - p1) * torch.log((1 - p1) / (1 - p2))
-
-        #     # Compute KL divergence from p2 to p1
-        #     kl_divergence_p2_p1 = p2 * torch.log(p2 / p1) + (1 - p2) * torch.log((1 - p2) / (1 - p1))
-
-        #     # Compute symmetric KL divergence by averaging the two KL divergences
-        #     symmetric_kl_divergence = (kl_divergence_p1_p2 + kl_divergence_p2_p1) / 2
-        #     similarity_matrix = -symmetric_kl_divergence
-        # elif self.num_negatives == 1:
-        similarity_matrix = -F.mse_loss(batch_p_ij_expanded_ij, batch_p_ij_expanded_ik, reduction='none')
-
-        labels = torch.cat([torch.arange(qg_size) for i in range(2)], dim=0)
-        # [2 x qgsize, 2 x qgsize] 4 identity matrices in each quadrant
-        labels = (labels.unsqueeze(0) == labels.unsqueeze(1)).float()
-        labels = labels.to(self.device)
-        # [batchsize, 2 x qgsize, 2 x qgsize]
-        labels = labels[None, None, :, :].expand(batch_size, 2 * qg_size, -1, -1)
-
-        mask = torch.eye(labels.shape[2], dtype=torch.bool).to(self.device)[None, None, :].expand(batch_size, 2 * qg_size, -1, -1)
-        # erase self similarities
-        labels = labels[~mask].view(batch_size, 2 * qg_size, 2 * qg_size, -1).to(self.device)
-        similarity_matrix = similarity_matrix[~mask].view(batch_size, 2 * qg_size, 2 * qg_size, -1).to(self.device)
-
-        # get augmented pair similarities
-        positives = similarity_matrix[labels.bool()].view(batch_size, 2 * qg_size, 2 * qg_size, -1).to(self.device)
-        # get the non augmented pair similarities
-        negatives = similarity_matrix[~labels.bool()].view(batch_size, 2 * qg_size, 2 * qg_size, -1).to(self.device)
-        
-        logits = torch.cat([positives, negatives], dim=3)
-        labels = torch.zeros((logits.shape[0], logits.shape[1], logits.shape[2]), dtype=torch.long).to(self.device)
-
-        logits = logits / self.temperature
-
-
-        return logits, labels
-
-
+        return x1_full, x2_full, x3_full, x4_full, batch_q_doc_vectors
     def custom_loss_function(self, batch_preds, batch_std_labels, **kwargs):
         '''
         @param batch_preds: [batch_size, num_docs, num_features]
@@ -270,27 +211,30 @@ class RankNeg(NeuralRanker):
         @param kwargs:
         @return:
         '''
-        logits_qg, labels_qg = batch_preds
-        loss = self.loss_no_reduction(logits_qg.permute(0, 3, 2, 1), labels_qg)
-        loss = torch.mean(loss)
-        pred = torch.argmax(logits_qg, dim=3)
-        # [batchsize, 2 x qgsize]
-        correct = torch.sum(pred == labels_qg)
-        total_num = pred.shape[0] * pred.shape[1] * pred.shape[2]
+        x1_full, x2_full, x3_full, x4_full, orig = batch_preds
+        loss = 0.25 * (self.mse_loss(x1_full, orig) + self.mse_loss(x2_full, orig) + self.mse_loss(x3_full, orig) + self.mse_loss(x4_full, orig))
+
         self.optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.point_sf.parameters(), 2.0)
         self.optimizer.step()
-        return loss, correct, total_num
+        return loss
+    # subtab==========================================================
 
     def eval_mode(self):
         self.point_sf.eval()
-        self.projector.eval()
+        self.decoder.eval()
+        # VIME ==========================================================
+        # self.decoder1.eval()
+        # self.decoder2.eval()
+        # VIME ==========================================================
 
     def train_mode(self):
         self.point_sf.train(mode=True)
-        self.projector.train(mode=True)
-
+        self.decoder.train(mode=True)
+        # VIME ==========================================================
+        # self.decoder1.train(mode=True)
+        # self.decoder2.train(mode=True)
+        # VIME ==========================================================
 
     def save(self, dir, name):
         if not os.path.exists(dir):
@@ -319,14 +263,13 @@ class RankNeg(NeuralRanker):
         epoch_loss = torch.tensor([0.0], device=self.device)
         batches_processed = 0
         # self.optimizer.zero_grad()
-        all_correct = torch.tensor([0.0], device=self.device)
-        all_attempts = torch.tensor([0.0], device=self.device)
+        
         start_time = time.time()
         for batch_ids, batch_q_doc_vectors, batch_std_labels in train_data: # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
             num_queries += len(batch_ids)
             if self.gpu: batch_q_doc_vectors, batch_std_labels = batch_q_doc_vectors.to(self.device), batch_std_labels.to(self.device)
 
-            (batch_loss, correct, total_num), stop_training = self.train_op(batch_q_doc_vectors, batch_std_labels, batch_ids=batch_ids, epoch_k=epoch_k, presort=presort, label_type=label_type)
+            batch_loss, stop_training = self.train_op(batch_q_doc_vectors, batch_std_labels, batch_ids=batch_ids, epoch_k=epoch_k, presort=presort, label_type=label_type)
             # loss = batch_loss/float(size_of_train_data)
             # loss.backward()
             
@@ -335,11 +278,8 @@ class RankNeg(NeuralRanker):
             else:
                 epoch_loss += batch_loss.item()
             batches_processed += 1
-            all_correct += correct
-            all_attempts += total_num
+        print("---One epoch time %s seconds ---" % (time.time() - start_time), file=sys.stderr)
         # self.optimizer.step()
-        print('Epoch accuracy', all_correct/all_attempts, 'out of', all_attempts, file=sys.stderr)
-
         epoch_loss = epoch_loss/batches_processed
         return epoch_loss, stop_training
     

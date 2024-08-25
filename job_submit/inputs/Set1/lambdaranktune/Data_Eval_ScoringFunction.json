@@ -1,7 +1,7 @@
 {
   "DataSetting": {
     "data_id":"Set1",
-    "dir_data":"/ocean/projects/cis230033p/houc/datasets/yahoo/ltrc_yahoo/shift_sparse_t=4.0_tau=4.25/",
+    "dir_data":"/ocean/projects/cis230033p/houc/datasets/yahoo/ltrc_yahoo/",
     "min_docs":[10],
     "min_rele":[1],
     "scaler_id":"StandardScaler",
@@ -12,7 +12,7 @@
   },
 
   "EvalSetting": {
-    "dir_output":"/ocean/projects/cis230033p/houc/ranking/set1/iclr/",
+    "dir_output":"/ocean/projects/cis230033p/houc/ranking/set1/neurips/",
     "epochs":200,
 
     "do_validation":true,

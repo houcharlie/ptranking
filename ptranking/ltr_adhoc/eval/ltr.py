@@ -38,12 +38,18 @@ from ptranking.ltr_adhoc.pretrain.simrank import SimRank, SimRankParameter
 from ptranking.ltr_adhoc.pretrain.simclr import SimCLR, SimCLRParameter
 from ptranking.ltr_adhoc.pretrain.simsiam_rank import SimSiamRank, SimSiamRankParameter
 from ptranking.ltr_adhoc.listwise.lambdaranktune import LambdaRankTune, LambdaRankTuneParameter
+from ptranking.ltr_adhoc.listwise.subtab_tune import SubTabTune, SubTabTuneParameter
 from ptranking.ltr_adhoc.pretrain.rankneg import RankNeg, RankNegParameter
+from ptranking.ltr_adhoc.pretrain.subtab import SubTab, SubTabParameter
+from ptranking.ltr_adhoc.pretrain.vime import VIME, VIMEParameter
+
+
 
 LTR_ADHOC_MODEL = [
     'RankMSE', 'RankNet', 'RankCosine', 'ListNet', 'ListMLE', 'STListNet',
     'ApproxNDCG', 'WassRank', 'LambdaRank', 'SoftRank', 'LambdaLoss',
-    'TwinRank', 'SimSiam', 'LambdaRankTune', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg'
+    'TwinRank', 'SimSiam', 'LambdaRankTune', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg', 'SubTabTune',
+    'SubTab','VIME'
 ]
 
 
@@ -235,7 +241,8 @@ class LTREvaluator():
                 'RankNet', 'LambdaRank', 'STListNet', 'ApproxNDCG',
                 'DirectOpt', 'LambdaLoss', 'MarginLambdaLoss', 'MDPRank',
                 'ExpectedUtility', 'MDNExpectedUtility', 'RankingMDN',
-                'SoftRank', 'TwinRank', 'SimSiam', 'LambdaRankTune', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg'
+                'SoftRank', 'TwinRank', 'SimSiam', 'LambdaRankTune', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg', 'SubTabTune',
+                'SubTab', 'VIME'
         ]:
             ranker = globals()[model_id](sf_para_dict=sf_para_dict,
                                          model_para_dict=model_para_dict,
@@ -418,18 +425,28 @@ class LTREvaluator():
             'Scratch_{0}_layers{2}_trial{1}_shrink{3}/'.format(
                 argobj.finetune_lr, argobj.trial_num, argobj.layers, argobj.shrink))
         else:
+            simsiam_path = os.path.join(
+                    eval_dict['dir_output'],
+                    'SimSiam_zeroes0.1_{2}_dim_{5}_layers_{6}_to_finetune_{3}_trial{4}_shrink0.01/'.format(
+                        argobj.aug_type, argobj.aug_percent, argobj.pretrain_lr,
+                        argobj.finetune_lr, argobj.trial_num, argobj.dim, argobj.layers, argobj.shrink))
+            simclr_path = os.path.join(
+                    eval_dict['dir_output'],
+                    '{9}_{0}{1}_{2}_dim_{5}_layers_{6}_to_finetune_{3}_temp{7}_mix0.0_trial{4}_shrink0.01_blend{11}_scale{12}_gumbel0.01_numnegatives{13}/'.format(
+                        argobj.aug_type, argobj.aug_percent, argobj.pretrain_lr,
+                        argobj.finetune_lr, argobj.trial_num, argobj.dim, argobj.layers, argobj.temperature, argobj.mix, argobj.pretrainer, argobj.shrink, argobj.blend, argobj.scale, argobj.num_negatives))
             if argobj.pretrainer == 'SimSiam':
                 eval_dict['dir_output'] = os.path.join(
                     eval_dict['dir_output'],
                     'SimSiam_{0}{1}_{2}_dim_{5}_layers_{6}_to_finetune_{3}_trial{4}_shrink0.01/'.format(
                         argobj.aug_type, argobj.aug_percent, argobj.pretrain_lr,
                         argobj.finetune_lr, argobj.trial_num, argobj.dim, argobj.layers, argobj.shrink))
-            elif argobj.pretrainer == 'SimRank' or argobj.pretrainer == 'SimCLR' or argobj.pretrainer == 'SimSiamRank' or argobj.pretrainer == 'RankNeg':
+            elif argobj.pretrainer == 'SimRank' or argobj.pretrainer == 'SimCLR' or argobj.pretrainer == 'SimSiamRank' or argobj.pretrainer == 'RankNeg' or argobj.pretrainer == 'SubTab' or argobj.pretrainer == 'VIME':
                 eval_dict['dir_output'] = os.path.join(
                     eval_dict['dir_output'],
-                    '{9}_{0}{1}_{2}_dim_{5}_layers_{6}_to_finetune_{3}_temp{7}_mix0.0_trial{4}_shrink0.01_blend{11}_scale{12}_gumbel{13}_numnegatives{14}/'.format(
+                    '{9}_{0}{1}_{2}_dim_{5}_layers_{6}_to_finetune_{3}_temp{7}_mix0.0_trial{4}_shrink0.01_blend{11}_scale{12}_gumbel0.01_numnegatives{13}/'.format(
                         argobj.aug_type, argobj.aug_percent, argobj.pretrain_lr,
-                        argobj.finetune_lr, argobj.trial_num, argobj.dim, argobj.layers, argobj.temperature, argobj.mix, argobj.pretrainer, argobj.shrink, argobj.blend, argobj.scale, argobj.gumbel, argobj.num_negatives))
+                        argobj.finetune_lr, argobj.trial_num, argobj.dim, argobj.layers, argobj.temperature, argobj.mix, argobj.pretrainer, argobj.shrink, argobj.blend, argobj.scale, argobj.num_negatives))
             else:
                 raise ValueError('Should be one of SimSiam or SimRank or SimCLR or SimSiamRank')
         if not os.path.exists(eval_dict['dir_output']):
@@ -442,7 +459,7 @@ class LTREvaluator():
                 model_para_dict['aug_type'] = argobj.aug_type
                 model_para_dict['aug_percent'] = argobj.aug_percent
                 model_para_dict['dim'] = argobj.dim 
-            elif argobj.pretrainer == 'SimRank' or argobj.pretrainer == 'SimCLR' or argobj.pretrainer == 'SimSiamRank' or argobj.pretrainer == 'RankNeg':
+            elif argobj.pretrainer == 'SimRank' or argobj.pretrainer == 'SimCLR' or argobj.pretrainer == 'SimSiamRank' or argobj.pretrainer == 'RankNeg' or argobj.pretrainer == 'VIME' or argobj.pretrainer == 'SubTab':
                 sf_para_dict['lr'] = argobj.pretrain_lr
                 sf_para_dict['layers'] = argobj.layers
                 model_para_dict['aug_type'] = argobj.aug_type
@@ -461,8 +478,10 @@ class LTREvaluator():
             model_para_dict['freeze'] = argobj.freeze
             model_para_dict['probe_layers'] = argobj.probe_layers
             model_para_dict['gumbel'] = argobj.gumbel
+            model_para_dict['shrink'] = argobj.shrink
             if argobj.aug_type != 'none' or argobj.freeze:
                 model_para_dict['model_path'] = eval_dict['dir_output']
+                model_para_dict['linear_path'] = simsiam_path
         print(eval_dict)
         
     def kfold_cv_eval(self,
@@ -520,7 +539,7 @@ class LTREvaluator():
             ranker.init(
             )  # initialize or reset with the same random initialization
             print('Initialized the model, loading data', file=sys.stderr)
-            if model_id not in ['SimRank', 'SimSiam', 'SimCLR', 'SimSiamRank', 'RankNeg']:
+            if model_id not in ['SimRank', 'SimSiam', 'SimCLR', 'SimSiamRank', 'RankNeg', 'SubTab', 'VIME']:
                 train_data, test_data, vali_data = self.load_data(
                     eval_dict, data_dict, fold_k, argobj.shrink)
             else:
@@ -544,6 +563,40 @@ class LTREvaluator():
 
             best_metric_val = None
             for epoch_k in range(1, epochs + 1):
+                if model_id not in ['SimSiam', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg', 'SubTab', 'VIME']:
+                    if epoch_k == 1:
+                        val_train_metric_value = ranker.validation(
+                            vali_data=vali_data,
+                            k=vali_k,
+                            device=ranker.device,
+                            vali_metric=vali_metric,
+                            label_type=label_type,
+                            max_label=max_label,
+                            presort=validation_presort)
+                        val_ndcg_print = val_train_metric_value.squeeze().data.cpu(
+                        ).numpy()
+                        print(
+                            'Fold {0}   Epoch {1}  Val {2}'
+                            .format(fold_k, 0,
+                                    val_ndcg_print),
+                            file=sys.stderr)
+                # if model_id == 'RankNeg':
+                #     val_train_metric_value = ranker.validation(
+                #             vali_data=vali_data,
+                #             k=vali_k,
+                #             device=ranker.device,
+                #             vali_metric=vali_metric,
+                #             label_type=label_type,
+                #             max_label=max_label,
+                #             presort=validation_presort)
+                #     val_ndcg_print = val_train_metric_value.squeeze().data.cpu(
+                #     ).numpy()
+                #     print(
+                #         'Fold {0}   Epoch {1}  Val {2}'
+                #         .format(fold_k, 0,
+                #                 val_ndcg_print),
+                #         file=sys.stderr)
+
                 torch_fold_k_epoch_k_loss, stop_training = ranker.train(
                         train_data=train_data,
                         epoch_k=epoch_k,
@@ -553,7 +606,35 @@ class LTREvaluator():
                 train_loss_metric_val = torch_fold_k_epoch_k_loss.squeeze(
                         -1).data.cpu().numpy()
                 summary_writer.add_scalar('train loss', train_loss_metric_val, global_step=epoch_k)
-                if model_id not in ['SimSiam', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg']:
+                # if model_id == 'RankNeg':
+                #     train_loss_metric_val = torch_fold_k_epoch_k_loss.squeeze(
+                #         -1).data.cpu().numpy()
+                #     torch_train_metric_value = ranker.validation(
+                #         vali_data=train_data,
+                #         k=vali_k,
+                #         device=ranker.device,
+                #         vali_metric=vali_metric,
+                #         label_type=label_type,
+                #         max_label=max_label,
+                #         presort=train_presort)
+                #     train_ndcg_print = torch_train_metric_value.squeeze().data.cpu(
+                #     ).numpy()
+                #     val_train_metric_value = ranker.validation(
+                #         vali_data=vali_data,
+                #         k=vali_k,
+                #         device=ranker.device,
+                #         vali_metric=vali_metric,
+                #         label_type=label_type,
+                #         max_label=max_label,
+                #         presort=validation_presort)
+                #     val_ndcg_print = val_train_metric_value.squeeze().data.cpu(
+                #     ).numpy()
+                #     print(
+                #         'Fold {0}   Epoch {1}   Loss {2}  Train {3} Val {4}'
+                #         .format(fold_k, epoch_k, torch_fold_k_epoch_k_loss,
+                #                 train_ndcg_print, val_ndcg_print),
+                #         file=sys.stderr)
+                if model_id not in ['SimSiam', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg', 'SubTab', 'VIME']:
                     train_loss_metric_val = torch_fold_k_epoch_k_loss.squeeze(
                         -1).data.cpu().numpy()
                     torch_train_metric_value = ranker.validation(
@@ -576,20 +657,31 @@ class LTREvaluator():
                         presort=validation_presort)
                     val_ndcg_print = val_train_metric_value.squeeze().data.cpu(
                     ).numpy()
+                    test_train_metric_value = ranker.validation(
+                        vali_data=test_data,
+                        k=vali_k,
+                        device=ranker.device,
+                        vali_metric=vali_metric,
+                        label_type=label_type,
+                        max_label=max_label,
+                        presort=test_presort)
+                    test_ndcg_print = test_train_metric_value.squeeze().data.cpu(
+                    ).numpy()
                     summary_writer.add_scalar('train_ndcg',
                                         train_ndcg_print,
                                         global_step=epoch_k)
                     summary_writer.add_scalar('val_ndcg', val_ndcg_print, global_step=epoch_k)
                     print(
-                        'Fold {0}   Epoch {1}   Loss {2}  Train {3} Val {4}'
+                        'Fold {0}   Epoch {1}   Loss {2}  Train {3} Val {4} Test {5}'
                         .format(fold_k, epoch_k, torch_fold_k_epoch_k_loss,
-                                train_ndcg_print, val_ndcg_print),
+                                train_ndcg_print, val_ndcg_print, test_ndcg_print),
                         file=sys.stderr)
 
                     if best_metric_val is None or val_ndcg_print > best_metric_val:
                         best_metric_val = val_ndcg_print
+
                         ranker.save(dir=self.dir_run + '/',
-                                    name='_'.join(['net_params_best', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials), str(argobj.shrink)]))
+                                    name='_'.join(['net_params_best', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials), str(argobj.shrink), str(argobj.gumbel)]))
                     # with summary_writer.as_default():
                     #     tf.summary.scalar('train_loss',
                     #                     train_loss_metric_val,
@@ -605,7 +697,7 @@ class LTREvaluator():
                     print('training is failed !')
                     break
             print("Saving in..", self.dir_run, file = sys.stderr)
-            if model_id in ['SimSiam', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg']:
+            if model_id in ['SimSiam', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg', 'SubTab', 'VIME']:
                 ranker.save(dir=self.dir_run + '/',
                         name='_'.join(['net_params_pretrain']))
             ranker.save(dir=self.dir_run + '/',
@@ -616,15 +708,15 @@ class LTREvaluator():
                     fold_k=fold_k,
                     dir_run=self.dir_run,
                     train_data_length=train_data.__len__())
-            if model_id not in ['SimSiam', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg']:
-                ranker.load(self.dir_run + '/' + '_'.join(['net_params_best', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials), str(argobj.shrink)]),
+            if model_id not in ['SimSiam', 'SimRank', 'SimCLR', 'SimSiamRank', 'RankNeg', 'SubTab', 'VIME']:
+                ranker.load(self.dir_run + '/' + '_'.join(['net_params_best', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials), str(argobj.shrink), str(argobj.gumbel)]),
                             device=self.device)
             else:
                 ranker.load(self.dir_run + '/' + '_'.join(['net_params']) +
                         '.pkl',
                         device=self.device)
             
-            print('Finetuned model saved in', '_'.join(['net_params_best', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials), str(argobj.shrink)]), file=sys.stderr)
+            print('Finetuned model saved in', '_'.join(['net_params_best', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials), str(argobj.shrink), str(argobj.gumbel)]), file=sys.stderr)
             
             # if do_vali: # using the fold-wise optimal model for later testing based on validation data
             #     ranker.load(modeldir, device=self.device)
@@ -654,7 +746,7 @@ class LTREvaluator():
             elif data_dict['data_id'] == 'Istella_S':
                 curr_filters = istella_filters
 
-            if model_id not in ['SimRank', 'SimSiam', 'SimCLR', 'SimSiamRank', 'RankNeg']:
+            if model_id not in ['SimRank', 'SimSiam', 'SimCLR', 'SimSiamRank', 'RankNeg', 'SubTab', 'VIME']:
                 # print('Train results')
                 # ndcgs, ks = traintape.fold_evaluation(model_id=model_id,
                 #                         ranker=ranker,
@@ -742,7 +834,7 @@ class LTREvaluator():
                 with open(self.dir_run + 'hparam.pickle', 'wb') as handle:
                     pickle.dump(hparam_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
                 
-                with open(self.dir_run + '_'.join(['metrics', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials), str(argobj.shrink)]) + '.pickle', 'wb') as handle:
+                with open(self.dir_run + '_'.join(['metrics', str(argobj.freeze), str(argobj.probe_layers), str(argobj.finetune_only), str(argobj.finetune_trials), str(argobj.shrink), str(argobj.gumbel)]) + '.pickle', 'wb') as handle:
                     pickle.dump(metrics_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         print('Tensorboard dir: ' + log_dir, file=sys.stderr)

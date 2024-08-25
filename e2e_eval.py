@@ -150,16 +150,20 @@ if __name__ == '__main__':
         if argobj.freeze:
             print('Finetune FROZEN')
         evaluator = LTREvaluator(cuda=argobj.cuda)
+        
+        file_pretrain = argobj.pretrainer
         # setup_seed(0)
         if argobj.aug_type != 'none' and not argobj.finetune_only:
             print('Starting pretraining!', sys.stderr)
             argobj.is_pretraining = True
-            evaluator.run(model_id=argobj.pretrainer, dir_json=os.path.join(argobj.dir_json, '{0}/'.format(argobj.pretrainer)), config_with_json=True, argobj=argobj)
+            evaluator.run(model_id=file_pretrain, dir_json=os.path.join(argobj.dir_json, '{0}/'.format(file_pretrain)), config_with_json=True, argobj=argobj)
 
         print('Starting finetuning!', sys.stderr)
         argobj.is_pretraining = False
         if argobj.aug_type == 'none':
             evaluator.run(model_id="LambdaRank", dir_json=os.path.join(argobj.dir_json, 'lambdarank/'), config_with_json=True, argobj=argobj)
+        elif argobj.pretrainer == 'SubTab':
+            evaluator.run(model_id="SubTabTune", dir_json=os.path.join(argobj.dir_json, 'lambdaranktune/'), config_with_json=True, argobj=argobj)
         else:
             evaluator.run(model_id="LambdaRankTune", dir_json=os.path.join(argobj.dir_json, 'lambdaranktune/'), config_with_json=True, argobj=argobj)
 

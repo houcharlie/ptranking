@@ -1,7 +1,7 @@
 {
   "DataSetting": {
     "data_id":"MSLRWEB30K",
-    "dir_data":"/ocean/projects/cis230033p/houc/datasets/mslr/",
+    "dir_data":"/ocean/projects/cis230033p/houc/datasets/mslr/shift_sparse_t=4.0_tau=4.5/",
     "scaler_id":"StandardScaler",
 
     "min_docs":[10],

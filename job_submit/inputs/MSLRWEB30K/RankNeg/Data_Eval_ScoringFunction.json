@@ -12,7 +12,7 @@
     },
   
     "EvalSetting": {
-        "dir_output":"/ocean/projects/cis230033p/houc/ranking/mslr/augmentations/",
+        "dir_output":"/ocean/projects/cis230033p/houc/ranking/mslr/neurips/",
         "epochs":300,
       "do_validation":true,
       "vali_metric": "nDCG",

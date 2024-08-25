@@ -18,8 +18,6 @@ from torch.nn.init import zeros_ as zero_init
 from torch.nn.init import xavier_normal_ as nr_init
 import time
 import sys
-from ptranking.data.binary_features import mslr_binary_features, yahoo_binary_features, istella_binary_features
-
 class SimSiam(NeuralRanker):
     ''' SimSiam '''
     """
@@ -46,48 +44,16 @@ class SimSiam(NeuralRanker):
             self.augmentation = gaussian
 
     def init(self):
-        self.point_sf, self.mappings, self.embeddings = self.config_point_neural_scoring_function()
+        self.point_sf = self.config_point_neural_scoring_function()
         self.projector, self.predictor = self.config_heads()
         self.loss = nn.CosineSimilarity(dim=1).to(self.device)
 
         self.config_optimizer()
-    def prepare_mappings(self, categorical_features):
-        mappings = {}
-        for feature_index, possible_values in categorical_features.items():
-            # Convert possible values to tensor for efficient operations
-            value_tensor = torch.tensor(possible_values, dtype=torch.float32).to(self.device)
-            mappings[feature_index] = value_tensor
-        return mappings
-    def separate_and_convert_features(self, batch_q_doc_vectors):
-        cat_features_list = []
-        dense_features_indices = [i for i in range(batch_q_doc_vectors.shape[2]) if i not in self.categorical_features]
 
-        for feature_index, possible_values in self.mappings.items():
-            feature_values = batch_q_doc_vectors[:, :, feature_index]
-            
-            # Broadcast comparison to create a boolean mask
-            comparison_mask = feature_values.unsqueeze(-1) == possible_values
-
-            # Convert boolean mask to indices
-            indices = torch.argmax(comparison_mask.float(), dim=-1)
-
-            # Get embeddings for categorical features
-            embedded_feature = self.embeddings[str(feature_index)](indices)
-            cat_features_list.append(embedded_feature)
-
-        # Extract dense features
-        dense_features = batch_q_doc_vectors[:, :, dense_features_indices]
-
-        # Concatenate all categorical features embeddings
-        cat_features_embeddings = torch.stack(cat_features_list, dim=2)
-
-        return dense_features, cat_features_embeddings
     def config_point_neural_scoring_function(self):
-        point_sf, mappings, embeddings = self.ini_pointsf(**self.sf_para_dict[self.sf_para_dict['sf_id']])
-        if self.gpu: 
-            point_sf = point_sf.to(self.device)
-            embeddings = embeddings.to(self.device)
-        return point_sf, mappings, embeddings
+        point_sf = self.ini_pointsf(**self.sf_para_dict[self.sf_para_dict['sf_id']])
+        if self.gpu: point_sf = point_sf.to(self.device)
+        return point_sf
 
     def config_heads(self):
         # dim = self.dim
@@ -137,26 +103,6 @@ class SimSiam(NeuralRanker):
         '''
         Initialization of a feed-forward neural network
         '''
-        if num_features == 136:
-            dataset = 'mslr'
-            categorical_features = mslr_binary_features
-        elif num_features == 220:
-            dataset = 'istella'
-            categorical_features = istella_binary_features
-        elif num_features == 700:
-            dataset = 'yahoo'
-            categorical_features = yahoo_binary_features
-        else:
-            print('Num features not matching any of the dataasets')
-        embeddings = nn.ModuleDict({
-            str(key): nn.Embedding(len(value), 8) for key, value in categorical_features.items()
-        })
-        mappings = self.prepare_mappings(categorical_features)
-        self.categorical_features = categorical_features
-        num_categorical_features = len(categorical_features)
-        dnn_features = num_features - num_categorical_features + 8 * num_categorical_features
-
-        num_features = dnn_features
         encoder_layers = num_layers
         ff_dims = [num_features]
         for i in range(encoder_layers):
@@ -166,7 +112,7 @@ class SimSiam(NeuralRanker):
         # point_sf = get_stacked_FFNet(ff_dims=ff_dims, AF=AF, TL_AF=TL_AF, apply_tl_af=apply_tl_af, dropout=dropout,
         #                              BN=BN, bn_type=bn_type, bn_affine=bn_affine, device=self.device)
         point_sf = get_resnet(num_features, h_dim)
-        return point_sf, mappings, embeddings
+        return point_sf
 
     def forward(self, batch_q_doc_vectors):
         '''
@@ -174,13 +120,6 @@ class SimSiam(NeuralRanker):
         @param batch_q_doc_vectors: [batch_size, num_docs, num_features], the latter two dimensions {num_docs, num_features} denote feature vectors associated with the same query.
         @return:
         '''
-        batch_size, num_docs, num_features = batch_q_doc_vectors.size()
-        batch_size, num_docs, num_features = batch_q_doc_vectors.size()
-        # [batch size, num docs, num dense features], [batch size, num docs, num categorical features, embedding dimension]
-        dense_features, cat_feature_embeddings = self.separate_and_convert_features(batch_q_doc_vectors)
-        _, _, num_cat_features, embed_size = cat_feature_embeddings.shape
-        _, _, num_dense_features = dense_features.shape
-        batch_q_doc_vectors = torch.cat([dense_features, cat_feature_embeddings.reshape(batch_size, num_docs, num_cat_features * embed_size)], dim=2)
 
         x1 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device)
         x2 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device)
@@ -211,20 +150,17 @@ class SimSiam(NeuralRanker):
         self.point_sf.eval()
         self.projector.eval()
         self.predictor.eval()
-        self.embeddings.eval()
 
     def train_mode(self):
         self.point_sf.train(mode=True)
         self.projector.train(mode=True)
         self.predictor.train(mode=True)
-        self.embeddings.train(mode=True)
 
     def save(self, dir, name):
         if not os.path.exists(dir):
             os.makedirs(dir)
 
         torch.save(self.point_sf.state_dict(), dir + name)
-        torch.save(self.embeddings.state_dict(), dir + name + 'embeddings')
 
     def load(self, file_model, **kwargs):
         device = kwargs['device']

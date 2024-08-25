@@ -12,7 +12,7 @@
   },
 
   "EvalSetting": {
-    "dir_output":"/ocean/projects/cis230033p/houc/ranking/mslr/iclr/",
+    "dir_output":"/ocean/projects/cis230033p/houc/ranking/mslr/icml-rebuttal/",
     "epochs":300,
     "do_validation":true,
     "vali_metric": "nDCG",

@@ -16,6 +16,8 @@ from ptranking.metric.metric_utils import get_delta_ndcg
 from torch.nn.init import xavier_normal_ as nr_init
 from absl import logging
 from torch.nn.init import eye_ as eye_init
+from ptranking.data.binary_features import mslr_binary_features, yahoo_binary_features, istella_binary_features
+
 from torch.nn.init import zeros_ as zero_init
 class SimCLR(NeuralRanker):
 
@@ -38,7 +40,7 @@ class SimCLR(NeuralRanker):
             self.augmentation = dacl
 
     def init(self):
-        self.point_sf = self.config_point_neural_scoring_function()
+        self.point_sf, self.mappings, self.embeddings = self.config_point_neural_scoring_function()
         # nr_hn = nn.Linear(136, 1)
         # self.point_sf.add_module('_'.join(['ff', 'scoring']), nr_hn)
         self.point_sf.to(self.device)
@@ -51,9 +53,11 @@ class SimCLR(NeuralRanker):
 
 
     def config_point_neural_scoring_function(self):
-        point_sf = self.ini_pointsf(**self.sf_para_dict[self.sf_para_dict['sf_id']])
-        if self.gpu: point_sf = point_sf.to(self.device)
-        return point_sf
+        point_sf, mappings, embeddings = self.ini_pointsf(**self.sf_para_dict[self.sf_para_dict['sf_id']])
+        if self.gpu: 
+            point_sf = point_sf.to(self.device)
+            embeddings = embeddings.to(self.device)
+        return point_sf, mappings, embeddings
 
     def config_head(self):
         dim = self.dim
@@ -93,12 +97,61 @@ class SimCLR(NeuralRanker):
         
         return nn.ParameterList(all_params)
         # return self.point_sf.parameters()
+    def prepare_mappings(self, categorical_features):
+        mappings = {}
+        for feature_index, possible_values in categorical_features.items():
+            # Convert possible values to tensor for efficient operations
+            value_tensor = torch.tensor(possible_values, dtype=torch.float32).to(self.device)
+            mappings[feature_index] = value_tensor
+        return mappings
+    def separate_and_convert_features(self, batch_q_doc_vectors):
+        cat_features_list = []
+        dense_features_indices = [i for i in range(batch_q_doc_vectors.shape[2]) if i not in self.categorical_features]
 
+        for feature_index, possible_values in self.mappings.items():
+            feature_values = batch_q_doc_vectors[:, :, feature_index]
+            
+            # Broadcast comparison to create a boolean mask
+            comparison_mask = feature_values.unsqueeze(-1) == possible_values
+
+            # Convert boolean mask to indices
+            indices = torch.argmax(comparison_mask.float(), dim=-1)
+
+            # Get embeddings for categorical features
+            embedded_feature = self.embeddings[str(feature_index)](indices)
+            cat_features_list.append(embedded_feature)
+
+        # Extract dense features
+        dense_features = batch_q_doc_vectors[:, :, dense_features_indices]
+
+        # Concatenate all categorical features embeddings
+        cat_features_embeddings = torch.stack(cat_features_list, dim=2)
+
+        return dense_features, cat_features_embeddings
     def ini_pointsf(self, num_features=None, h_dim=100, out_dim=136, num_layers=3, AF='R', TL_AF='S', apply_tl_af=False,
                     BN=True, bn_type=None, bn_affine=False, dropout=0.1):
         '''
         Initialization of a feed-forward neural network
         '''
+        if num_features == 136:
+            dataset = 'mslr'
+            categorical_features = mslr_binary_features
+        elif num_features == 220:
+            dataset = 'istella'
+            categorical_features = istella_binary_features
+        elif num_features == 700:
+            dataset = 'yahoo'
+            categorical_features = yahoo_binary_features
+        else:
+            print('Num features not matching any of the dataasets')
+        embeddings = nn.ModuleDict({
+            str(key): nn.Embedding(len(value), 8) for key, value in categorical_features.items()
+        })
+        mappings = self.prepare_mappings(categorical_features)
+        num_categorical_features = len(categorical_features)
+        dnn_features = num_features - num_categorical_features + 8 * num_categorical_features
+        self.categorical_features = categorical_features
+        num_features = dnn_features
         encoder_layers = num_layers
         ff_dims = [num_features]
         for i in range(encoder_layers):
@@ -109,7 +162,7 @@ class SimCLR(NeuralRanker):
         #                              BN=BN, bn_type=bn_type, bn_affine=bn_affine, device=self.device)
         h_dim = 136
         point_sf = get_resnet(num_features, h_dim)
-        return point_sf
+        return point_sf, mappings, embeddings
 
     def info_nce_loss(self, features, batch_size):
 
@@ -208,6 +261,12 @@ class SimCLR(NeuralRanker):
         @return:
         '''
         batch_size, num_docs, num_features = batch_q_doc_vectors.size()
+        batch_size, num_docs, num_features = batch_q_doc_vectors.size()
+        # [batch size, num docs, num dense features], [batch size, num docs, num categorical features, embedding dimension]
+        dense_features, cat_feature_embeddings = self.separate_and_convert_features(batch_q_doc_vectors)
+        _, _, num_cat_features, embed_size = cat_feature_embeddings.shape
+        _, _, num_dense_features = dense_features.shape
+        batch_q_doc_vectors = torch.cat([dense_features, cat_feature_embeddings.reshape(batch_size, num_docs, num_cat_features * embed_size)], dim=2)
         x1 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device)
         x2 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device)
 
@@ -307,10 +366,12 @@ class SimCLR(NeuralRanker):
     def eval_mode(self):
         self.point_sf.eval()
         self.projector.eval()
+        self.embeddings.eval()
 
     def train_mode(self):
         self.point_sf.train(mode=True)
         self.projector.train(mode=True)
+        self.embeddings.train(mode=True)
 
     def save(self, dir, name):
         if not os.path.exists(dir):
@@ -318,11 +379,11 @@ class SimCLR(NeuralRanker):
 
         torch.save(self.point_sf.state_dict(), dir + name)
         torch.save(self.projector.state_dict(), dir + name + 'projector')
+        torch.save(self.projector.state_dict(), dir + name + 'embeddings')
 
     def load(self, file_model, **kwargs):
         device = kwargs['device']
         self.point_sf.load_state_dict(torch.load(file_model, map_location=device))
-        self.projector.load_state_dict(torch.load(file_model + 'projector', map_location=device))
 
     def get_tl_af(self):
         return self.sf_para_dict[self.sf_para_dict['sf_id']]['TL_AF']
@@ -358,7 +419,7 @@ class SimCLR(NeuralRanker):
         loss = lambda_loss
         self.optimizer.zero_grad()
         loss.backward()
-        # torch.nn.utils.clip_grad_norm_(self.point_sf.parameters(), 2.0)
+        torch.nn.utils.clip_grad_norm_(self.point_sf.parameters(), 2.0)
         self.optimizer.step()
         return loss, correct, total_num
     
@@ -371,8 +432,7 @@ class SimCLR(NeuralRanker):
         @return:
         '''
         stop_training = False
-        # batch_preds = self.forward(batch_q_doc_vectors)
-        batch_preds = self.sub_forward(batch_q_doc_vectors)
+        batch_preds = self.qg_forward(batch_q_doc_vectors)
 
         return self.custom_loss_function(batch_preds, batch_std_labels, **kwargs), stop_training
     

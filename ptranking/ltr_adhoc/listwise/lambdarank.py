@@ -17,6 +17,33 @@ from ptranking.base.adhoc_ranker import AdhocNeuralRanker
 from ptranking.ltr_adhoc.eval.parameter import ModelParameter
 from ptranking.ltr_adhoc.util.lambda_utils import get_pairwise_comp_probs
 from torch import nn 
+from ptranking.data.binary_features import mslr_binary_features, yahoo_binary_features, istella_binary_features
+
+
+class FM(nn.Module):
+    """Factorization Machine models pairwise (order-2) feature interactions
+     without linear term and bias.
+      Input shape
+        - 3D tensor with shape: ``(batch_size,field_size,embedding_size)``.
+      Output shape
+        - 2D tensor with shape: ``(batch_size, 1)``.
+      References
+        - [Factorization Machines](https://www.csie.ntu.edu.tw/~b97053/paper/Rendle2010FM.pdf)
+    """
+
+    def __init__(self):
+        super(FM, self).__init__()
+
+    def forward(self, inputs):
+        fm_input = inputs
+
+        square_of_sum = torch.pow(torch.sum(fm_input, dim=1, keepdim=True), 2)
+        sum_of_square = torch.sum(fm_input * fm_input, dim=1, keepdim=True)
+        cross_term = square_of_sum - sum_of_square
+        cross_term = 0.5 * torch.sum(cross_term, dim=2, keepdim=False)
+
+        return cross_term
+
 
 class LambdaRank(AdhocNeuralRanker):
     '''
@@ -27,34 +54,89 @@ class LambdaRank(AdhocNeuralRanker):
         super(LambdaRank, self).__init__(id='LambdaRank', sf_para_dict=sf_para_dict, gpu=gpu, device=device)
         self.sigma = model_para_dict['sigma']
     def init(self):
-        self.point_sf = self.config_point_neural_scoring_function()
-        nr_hn = nn.Linear(136, 1)
-        self.point_sf.add_module('_'.join(['ff', 'scoring']), nr_hn)
-        self.point_sf.to(self.device)
+        # self.point_sf = self.config_point_neural_scoring_function()
+        # for i in range(2):
+        #     nr_hn = nn.Linear(136, 136)
+        #     self.point_sf.add_module('_'.join(['ff', 'scoring', str(i)]), nr_hn)
+        # nr_hn = nn.Linear(136, 1)
+        # self.point_sf.add_module('_'.join(['ff', 'scoring']), nr_hn)
+        # self.point_sf.to(self.device)
+
+        # self.scheduler = StepLR(optimizer=self.optimizer, step_size=40, gamma=1.)
+        self.point_sf, self.linear_weight, self.embeddings, self.mappings, self.categorical_features, self.dataset, self.fm, self.linear1, self.linear2, self.linear3 = self.config_point_neural_scoring_function()
         self.config_optimizer()
         self.scheduler = StepLR(optimizer=self.optimizer, step_size=40, gamma=1.)
-
+   
     
     def config_point_neural_scoring_function(self):
-        point_sf = self.ini_pointsf(**self.sf_para_dict[self.sf_para_dict['sf_id']])
-        if self.gpu: point_sf = point_sf.to(self.device)
-        return point_sf
+        point_sf, linear_weight, embeddings, mappings, categorical_features, dataset, fm, linear1, linear2, linear3 = self.ini_pointsf(**self.sf_para_dict[self.sf_para_dict['sf_id']])
+        if self.gpu: 
+            point_sf = point_sf.to(self.device)
+            linear_weight = linear_weight.to(self.device)
+            embeddings = embeddings.to(self.device)
+            fm = fm.to(self.device)
+            linear1 = linear1.to(self.device)
+            linear2 = linear2.to(self.device)
+            linear3 = linear3.to(self.device)
+            
+        return point_sf, linear_weight, embeddings, mappings, categorical_features, dataset, fm, linear1, linear2, linear3
 
     def ini_pointsf(self, num_features=None, h_dim=100, out_dim=136, num_layers=3, AF='R', TL_AF='S', apply_tl_af=False,
                     BN=True, bn_type=None, bn_affine=False, dropout=0.1):
         '''
         Initialization of a feed-forward neural network
         '''
-        # encoder_layers = num_layers
-        # ff_dims = [num_features]
-        # for i in range(encoder_layers):
-        #     ff_dims.append(h_dim)
-        # ff_dims.append(out_dim)
+        if num_features == 136:
+            dataset = 'mslr'
+            categorical_features = mslr_binary_features
+        elif num_features == 220:
+            dataset = 'istella'
+            categorical_features = istella_binary_features
+        elif num_features == 700:
+            dataset = 'yahoo'
+            categorical_features = yahoo_binary_features
+        else:
+            print('Num features not matching any of the dataasets')
+        
 
-        # point_sf = get_stacked_FFNet(ff_dims=ff_dims, AF=AF, TL_AF=TL_AF, apply_tl_af=apply_tl_af, dropout=dropout,
-        #                              BN=BN, bn_type=bn_type, bn_affine=bn_affine, device=self.device)
-        point_sf = get_resnet(num_features, 136)
-        return point_sf
+        # using 6 * (3) ^ 1/4, the dimension given in DCN v2 https://arxiv.org/pdf/2008.13535.pdf
+        embeddings = nn.ModuleDict({
+            str(key): nn.Embedding(len(value), 8) for key, value in categorical_features.items()
+        })
+        mappings = self.prepare_mappings(categorical_features)
+        num_categorical_features = len(categorical_features)
+        dnn_features = num_features - num_categorical_features + 8 * num_categorical_features
+        linear1 = nn.Linear(dnn_features, dnn_features)
+        linear2 = nn.Linear(dnn_features, dnn_features)
+        linear3 = nn.Linear(dnn_features, dnn_features)
+        
+        # For DeepFM===========================================================================
+        # point_sf = nn.Sequential(
+        #     nn.Linear(dnn_features, 256), # First linear layer
+        #     nn.ReLU(),                 # ReLU after first linear layer
+        #     nn.Linear(256, 128),       # Second linear layer
+        #     nn.ReLU(),                 # ReLU after second linear layer
+        #     nn.Linear(128, 1)          # Final linear layer
+        # )
+        # linear_weight = nn.Linear(num_features - len(categorical_features.keys()), 1, bias=False)
+        # For DeepFM===========================================================================
+
+        # For DCN v2===========================================================================
+        # point_sf = nn.Sequential(
+        #     nn.Linear(dnn_features, 128), # First linear layer
+        #     nn.ReLU(),                 # ReLU after first linear layer
+        #     nn.Linear(128, 128),       # Second linear layer
+        #     nn.ReLU(),                 # ReLU after second linear layer
+        # )
+        linear_weight = nn.Linear(128 + dnn_features, 1, bias=False)
+        # For DCN v2===========================================================================
+
+        # For normal===========================================================================
+        point_sf = get_resnet(dnn_features, 136)
+        point_sf.add_module('end_linear', nn.Linear(136, 1))
+        # For normal===========================================================================
+        fm = FM()
+        return point_sf, linear_weight, embeddings, mappings, categorical_features, dataset, fm, linear1, linear2, linear3
     def custom_loss_function(self, batch_preds, batch_std_labels, **kwargs):
         '''
         @param batch_preds: [batch, ranking_size] each row represents the relevance predictions for documents associated with the same query
@@ -92,6 +174,78 @@ class LambdaRank(AdhocNeuralRanker):
 
         return batch_loss
 
+    def prepare_mappings(self, categorical_features):
+        mappings = {}
+        for feature_index, possible_values in categorical_features.items():
+            # Convert possible values to tensor for efficient operations
+            value_tensor = torch.tensor(possible_values, dtype=torch.float32).to(self.device)
+            mappings[feature_index] = value_tensor
+        return mappings
+    
+    def separate_and_convert_features(self, batch_q_doc_vectors):
+        cat_features_list = []
+        dense_features_indices = [i for i in range(batch_q_doc_vectors.shape[2]) if i not in self.categorical_features]
+
+        for feature_index, possible_values in self.mappings.items():
+            feature_values = batch_q_doc_vectors[:, :, feature_index]
+            
+            # Broadcast comparison to create a boolean mask
+            comparison_mask = feature_values.unsqueeze(-1) == possible_values
+
+            # Convert boolean mask to indices
+            indices = torch.argmax(comparison_mask.float(), dim=-1)
+
+            # Get embeddings for categorical features
+            embedded_feature = self.embeddings[str(feature_index)](indices)
+            cat_features_list.append(embedded_feature)
+
+        # Extract dense features
+        dense_features = batch_q_doc_vectors[:, :, dense_features_indices]
+
+        # Concatenate all categorical features embeddings
+        cat_features_embeddings = torch.stack(cat_features_list, dim=2)
+
+        return dense_features, cat_features_embeddings
+
+    def forward(self, batch_q_doc_vectors):
+        '''
+        Forward pass through the scoring function, where each document is scored independently.
+        @param batch_q_doc_vectors: [batch_size, num_docs, num_features], the latter two dimensions {num_docs, num_features} denote feature vectors associated with the same query.
+        @return:
+        '''
+        batch_size, num_docs, num_features = batch_q_doc_vectors.size()
+        # [batch size, num docs, num dense features], [batch size, num docs, num categorical features, embedding dimension]
+        dense_features, cat_feature_embeddings = self.separate_and_convert_features(batch_q_doc_vectors)
+        _, _, num_cat_features, embed_size = cat_feature_embeddings.shape
+        _, _, num_dense_features = dense_features.shape
+        input_to_dnn = torch.cat([dense_features, cat_feature_embeddings.reshape(batch_size, num_docs, num_cat_features * embed_size)], dim=2)
+
+        # # FM part
+        # =======================================FM==============================================
+        # input_to_fm = cat_feature_embeddings.reshape(batch_size * num_docs, num_cat_features, embed_size)
+        # score = self.fm(input_to_fm).reshape(batch_size, num_docs)
+        # input_to_linear_weight = dense_features.reshape(batch_size, num_docs, num_dense_features)
+        # score += self.linear_weight(input_to_linear_weight).reshape(batch_size, num_docs)
+        # input_to_linear_cat = cat_feature_embeddings.reshape(batch_size, num_docs, num_cat_features * embed_size)
+        # score += torch.sum(input_to_linear_cat, dim=2).reshape(batch_size, num_docs)
+        # score = self.point_sf(input_to_dnn).reshape(batch_size, num_docs)
+        # =======================================FM==============================================
+
+        # # DCNv2 part
+        # ========================================DCNv2=============================================
+        deep_out = self.point_sf(input_to_dnn).reshape(batch_size, num_docs, 128)
+        x_0 = input_to_dnn
+        dot_ = self.linear1(x_0)
+        x_1 = torch.mul(x_0, dot_) + x_0
+        dot_ = self.linear2(x_1)
+        x_2 = torch.mul(x_1, dot_) + x_0
+        dot_ = self.linear3(x_2)
+        cross_out = torch.mul(x_2, dot_) + x_0
+        input_to_linear = torch.cat([deep_out, cross_out], dim=2)
+        score = self.linear_weight(input_to_linear).reshape(batch_size, num_docs)
+
+        # ========================================DCNv2=============================================
+        return score
 
 ###### Parameter of LambdaRank ######
 

@@ -1,4 +1,19 @@
 
-1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/mslr/ 0 0
-1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/yahoo/ 0 0
-1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/istella/ 0 0
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/mslr/ 0 0 0
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/mslr/ 0 5 0
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/mslr/ 0 10 0
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/mslr/ 0 0 1
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/mslr/ 0 5 1
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/mslr/ 0 10 1
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/yahoo/ 0 0 0
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/yahoo/ 0 5 0
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/yahoo/ 0 10 0
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/yahoo/ 0 0 1
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/yahoo/ 0 5 1
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/yahoo/ 0 10 1
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/istella/ 0 0 0
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/istella/ 0 5 0
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/istella/ 0 10 0
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/istella/ 0 0 1
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/istella/ 0 5 1
+1.0 /jet/home/houc/ptranking/testing/ltr_tree/json/istella/ 0 10 1

@@ -23,38 +23,57 @@ from torch import nn
 from torch.nn.init import xavier_normal_ as nr_init
 from torch.nn.init import eye_ as eye_init
 from torch.nn.init import zeros_ as zero_init
+zeros_default_file = ('/scratch/charlieh/ptranking-results/'
+                    'gpu_grid_SimSiam/SimSiam_SF_GE5GE_BN_Affine_Adam'
+                    '_1e-06_MSLRWEB30K_MiD_10_MiR_1_TrBat_100_TrPresort'
+                    '_EP_10_V_nDCG@5_QS_StandardScaler/aug_percent_0.7_embed_dim_100')
 
-
-class LambdaRankTune(AdhocNeuralRanker):
+class SubTabTune(AdhocNeuralRanker):
     '''
     Christopher J.C. Burges, Robert Ragno, and Quoc Viet Le. 2006.
     Learning to Rank with Nonsmooth Cost Functions. In Proceedings of NIPS conference. 193–200.
     '''
     def __init__(self, sf_para_dict=None, model_para_dict=None, gpu=False, device=None):
-        super(LambdaRankTune, self).__init__(id='LambdaRankTune', sf_para_dict=sf_para_dict, gpu=gpu, device=device, weight_decay=1e-4)
+        super(SubTabTune, self).__init__(id='SubTabTune', sf_para_dict=sf_para_dict, gpu=gpu, device=device, weight_decay=1e-4)
         self.sigma = model_para_dict['sigma']
         self.model_load_ckpt = model_para_dict['model_path']
         self.linear_path = model_para_dict['linear_path']
         self.epochs = 0
-        self.freeze = model_para_dict['freeze']
-        self.probe_layers = model_para_dict['probe_layers']
-        self.weight_decay = model_para_dict['gumbel']
+        self.subsets = 4
 
     def get_parameters(self):
         all_params = []
         for param in self.point_sf.parameters():
             all_params.append(param)
+        for param in self.scorer.parameters():
+            all_params.append(param)
         
         return nn.ParameterList(all_params)
+    
     def forward(self, batch_q_doc_vectors):
         batch_size, num_docs, num_features = batch_q_doc_vectors.size()
-        _batch_preds = self.point_sf(batch_q_doc_vectors)
+        representations = []
+        for i in range(self.subsets):
+            if i == self.subsets - 1:
+                start = num_features - self.subset_size
+                end = num_features
+            else:
+                start = i * self.increment
+                end = start + self.subset_size
+            curr_data = batch_q_doc_vectors[:,:,start:end]
+            encoded = self.point_sf(curr_data)
+            representations.append(encoded[:,:,:,None])
+
+        representations = torch.cat(representations, dim=3)
+        representation = torch.mean(representations, dim=3)
+        _batch_preds = self.scorer(representation)
         batch_preds = _batch_preds.view(-1, num_docs) 
         return batch_preds
+    
+
     def init(self):
         checkpoint_dir = self.model_load_ckpt
-        self.point_sf = self.config_point_neural_scoring_function()
-
+        self.point_sf, self.scorer = self.config_point_neural_scoring_function()
         self.config_optimizer()
         if len(checkpoint_dir) > 0:
             print('Loading checkpoint...', file=sys.stderr)
@@ -64,56 +83,29 @@ class LambdaRankTune(AdhocNeuralRanker):
             curr_dict = self.point_sf.state_dict()
             curr_dict.update(pretrained_dict)
 
-            if 'SimCLR' in self.model_load_ckpt:
-                projector_file_name = os.path.join(checkpoint_dir, 'net_params_pretrainprojector')
-                projector_dict = torch.load(projector_file_name, map_location=self.device)
-                curr_keys = curr_dict.keys()
-                for key in curr_keys:
-                    if key in projector_dict:
-                        print(key)
-                        curr_dict[key] = projector_dict[key]
-            self.point_sf.load_state_dict(curr_dict)
-
-        else:
-            print('No checkpoint', file=sys.stderr)
-
         print(self.point_sf)
         self.scheduler = StepLR(optimizer=self.optimizer, step_size=40, gamma=1.)
 
     def config_point_neural_scoring_function(self):
-        point_sf = self.ini_pointsf(**self.sf_para_dict[self.sf_para_dict['sf_id']])
-        if self.gpu: point_sf = point_sf.to(self.device)
-        return point_sf
+        point_sf, scorer = self.ini_pointsf(**self.sf_para_dict[self.sf_para_dict['sf_id']])
+        if self.gpu: 
+            point_sf = point_sf.to(self.device)
+            scorer = scorer.to(self.device)
+        return point_sf, scorer
 
     def ini_pointsf(self, num_features=None, h_dim=100, out_dim=136, num_layers=3, AF='R', TL_AF='S', apply_tl_af=False,
                     BN=True, bn_type=None, bn_affine=False, dropout=0.1):
         '''
         Initialization of a feed-forward neural network
         '''
-        encoder_layers = num_layers
-        ff_dims = [num_features]
-        for i in range(encoder_layers):
-            ff_dims.append(h_dim)
-        ff_dims.append(out_dim)
         h_dim = 136
-        point_sf = get_resnet(num_features, h_dim)
-
-        if 'SimCLR' in self.model_load_ckpt:
-            point_sf.add_module('_'.join(['project', 'linear', str(0)]), nn.Linear(h_dim, h_dim))
-            point_sf.add_module('_'.join(['project', 'relu', str(0)]), nn.ReLU())
-
-        scoring_adapter = nn.Sequential()
-        for i in range(self.probe_layers - 1):
-            nr_block =  nn.Linear(h_dim, h_dim)
-            scoring_adapter.add_module('_'.join(['ff', 'scoring', str(i + 1)]), nr_block)
-            scoring_adapter.add_module('_'.join(['ff', 'scoring', 'act', str(i+1)]), nn.ReLU())
+        self.subset_size = int(num_features * 0.75)
+        self.increment = (num_features - self.subset_size)//self.subsets
+        point_sf = get_resnet(self.subset_size, h_dim)
         scoring_layer = nn.Linear(h_dim, 1)
-        scoring_adapter.add_module('scoring_layer', scoring_layer)
-
-        
-        point_sf.add_module('scoring_adapter', scoring_adapter)
         point_sf.to(self.device)
-        return point_sf
+        scoring_layer.to(self.device)
+        return point_sf, scoring_layer
 
 
     def custom_loss_function(self, batch_preds, batch_std_labels, **kwargs):
@@ -149,11 +141,12 @@ class LambdaRankTune(AdhocNeuralRanker):
 
         self.optimizer.zero_grad()
         batch_loss.backward()
+        # torch.nn.utils.clip_grad_norm_(self.point_sf.parameters(), 1.0)
         self.optimizer.step()
         
 
         return batch_loss
-
+    
     def train_mode(self):
         self.point_sf.train(mode=True)
     
@@ -176,28 +169,19 @@ class LambdaRankTune(AdhocNeuralRanker):
         One epoch training using the entire training data
         '''
         self.train_mode()
-        if not self.freeze:
-            if self.epochs < 100:
-                for name, param in self.point_sf.named_parameters():
-                    param.requires_grad = False
-                for name, param in self.point_sf.scoring_adapter.named_parameters():
-                    param.requires_grad = True
-            else:
-                for name, param in self.point_sf.named_parameters():
-                    param.requires_grad = True
-        else:
-            self.point_sf.eval()
-            self.point_sf.scoring_adapter.train(mode=True)
-            for name, param in self.point_sf.named_parameters():
-                param.requires_grad = False
-            for name, param in self.point_sf.scoring_adapter.named_parameters():
-                param.requires_grad = True
+        self.point_sf.train(mode=True)
+        self.scorer.train(mode=True)
+        for name, param in self.point_sf.named_parameters():
+            param.requires_grad = True
+        for name, param in self.scorer.named_parameters():
+            param.requires_grad = True
                 
         assert 'label_type' in kwargs and 'presort' in kwargs
         label_type, presort = kwargs['label_type'], kwargs['presort']
         num_queries = 0
         epoch_loss = torch.tensor([0.0], device=self.device)
         batches_processed = 0
+        # self.optimizer.zero_grad()
         
         
         for batch_ids, batch_q_doc_vectors, batch_std_labels in train_data: # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
@@ -205,23 +189,40 @@ class LambdaRankTune(AdhocNeuralRanker):
             if self.gpu: batch_q_doc_vectors, batch_std_labels = batch_q_doc_vectors.to(self.device), batch_std_labels.to(self.device)
 
             batch_loss, stop_training = self.train_op(batch_q_doc_vectors, batch_std_labels, batch_ids=batch_ids, epoch_k=epoch_k, presort=presort, label_type=label_type)
-
+            # loss = batch_loss / float(size_of_train)
+            # loss.backward()
             if stop_training:
                 break
             else:
                 epoch_loss += batch_loss.item()
             batches_processed += 1
 
+        # torch.nn.utils.clip_grad_norm_(self.point_sf.parameters(), 1.0)
+        # self.optimizer.step()
         epoch_loss = epoch_loss/num_queries
         self.epochs += 1
         return epoch_loss, stop_training
+    def train_op(self, batch_q_doc_vectors, batch_std_labels, **kwargs):
+        '''
+        The training operation over a batch of queries.
+        @param batch_q_doc_vectors: [batch_size, num_docs, num_features], the latter two dimensions {num_docs, num_features} denote feature vectors associated with the same query.
+        @param batch_std_labels: [batch, ranking_size] each row represents the standard relevance labels for documents associated with the same query.
+        @param kwargs: optional arguments
+        @return:
+        '''
+        stop_training = False
+        batch_preds = self.forward(batch_q_doc_vectors)
 
+        if 'epoch_k' in kwargs and kwargs['epoch_k'] % self.stop_check_freq == 0:
+            stop_training = self.stop_training(batch_preds)
+
+        return self.custom_loss_function(batch_preds, batch_std_labels, **kwargs), stop_training
 ###### Parameter of LambdaRank ######
 
-class LambdaRankTuneParameter(ModelParameter):
+class SubTabTuneParameter(ModelParameter):
     ''' Parameter class for LambdaRank '''
     def __init__(self, debug=False, para_json=None):
-        super(LambdaRankTuneParameter, self).__init__(model_id='LambdaRankTune', para_json=para_json)
+        super(SubTabTuneParameter, self).__init__(model_id='SubTabTune', para_json=para_json)
         self.debug = debug
 
     def default_para_dict(self):
@@ -229,7 +230,7 @@ class LambdaRankTuneParameter(ModelParameter):
         Default parameter setting for LambdaRank
         :return:
         """
-        self.lambda_para_dict = dict(model_id=self.model_id, sigma=1.0, model_path='', linear_path='', freeze=False, probe_layers=1)
+        self.lambda_para_dict = dict(model_id=self.model_id, sigma=1.0, model_path=zeros_default_file, linear_path='', freeze=False, probe_layers=1)
         return self.lambda_para_dict
 
     def to_para_string(self, log=False, given_para_dict=None):

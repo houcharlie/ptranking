@@ -371,8 +371,7 @@ class SimCLR(NeuralRanker):
         @return:
         '''
         stop_training = False
-        # batch_preds = self.forward(batch_q_doc_vectors)
-        batch_preds = self.sub_forward(batch_q_doc_vectors)
+        batch_preds = self.qg_forward(batch_q_doc_vectors)
 
         return self.custom_loss_function(batch_preds, batch_std_labels, **kwargs), stop_training
     

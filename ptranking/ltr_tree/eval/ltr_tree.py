@@ -7,7 +7,9 @@ import datetime
 import numpy as np
 import random
 import torch
-
+import pickle
+import copy
+import json
 from ptranking.base.ranker import LTRFRAME_TYPE
 from ptranking.utils.bigdata.BigPickle import pickle_save
 from ptranking.data.data_utils import YAHOO_LTR, ISTELLA_LTR, MSLETOR, MSLRWEB
@@ -232,7 +234,6 @@ class TreeLTREvaluator(LTREvaluator):
         self.display_information(data_dict=data_dict)
         self.setup_eval(data_dict=data_dict, eval_dict=eval_dict)
         model_id, data_id = self.model_parameter.model_id, data_dict['data_id']
-        print(model_para_dict)
         fold_num = data_dict['fold_num'] # updated due to the debug mode
         cutoffs, do_validation = eval_dict['cutoffs'], eval_dict['do_validation']
 
@@ -260,6 +261,9 @@ class TreeLTREvaluator(LTREvaluator):
             y_test, group_test, y_pred, y_test_robust, group_test_robust, y_pred_robust = tree_ranker.run(fold_k=fold_k, file_train=file_train, file_vali=file_vali,
                                                          file_test=file_test, argobj=argobj, data_dict=data_dict, eval_dict=eval_dict,
                                                          save_model_dir=self.save_model_dir)
+            # y_test, group_test, y_pred = tree_ranker.run(fold_k=fold_k, file_train=file_train, file_vali=file_vali,
+            #                                              file_test=file_test, argobj=argobj, data_dict=data_dict, eval_dict=eval_dict,
+            #                                              save_model_dir=self.save_model_dir)
 
             print('Full test metrics')
             fold_avg_ndcg_at_ks, fold_avg_nerr_at_ks, fold_avg_ap_at_ks, fold_avg_p_at_ks,\
@@ -411,6 +415,7 @@ class TreeLTREvaluator(LTREvaluator):
                     currdict = model_para_dict.copy()
                     # currdict['lightgbm_para_dict']['num_leaves'] = argobj.dim
                     # currdict['lightgbm_para_dict']['min_data_in_leaf'] = argobj.layers
+                    print(currdict)
                     ndcg, robust_ndcg, _, _, _ = self.kfold_cv_eval(data_dict=data_dict, eval_dict=eval_dict, model_para_dict=currdict, argobj=argobj)
                     if ndcg[2] > curr_ndcg_best:
                         curr_ndcg_best = ndcg[2]
@@ -419,8 +424,24 @@ class TreeLTREvaluator(LTREvaluator):
                     # print(ndcg, robust_ndcg)
                     # ndcgs.append(ndcg[2])
                     # robust_ndcgs.append(robust_ndcg[2])
-                    
+        with open(tree_data_eval_json, 'r') as f:
+            dataid = json.load(f)['DataSetting']['data_id']
+        if dataid == 'Istella_S':
+            saveid = 'istella'
+        elif dataid == 'MSLRWEB30K':
+            saveid = 'mslr'
+        elif dataid == 'Set1':
+            saveid = 'set1'
         print('Best NDCG, robust NDCG, params', curr_ndcg_best, curr_robust_ndcg_best, best_params)
+        res_dict = {'test/ndcg@5': curr_ndcg_best, 'test/robust-ndcg@5': curr_robust_ndcg_best}
+        with open('/ocean/projects/cis230033p/houc/ranking/{4}/tree/result_trial{0}_pcadim{1}_shrink{2}_pseudo{3}.pickle'.format(
+            argobj.trial_num,
+            argobj.dim,
+            argobj.shrink,
+            argobj.layers,
+            saveid
+        ), 'wb') as handle:
+            pickle.dump(res_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
         # print('NDCG: ', np.mean(ndcgs), np.std(ndcgs))
         # print('Robust NDCG: ', np.mean(robust_ndcgs), np.std(robust_ndcgs))
         

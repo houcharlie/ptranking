@@ -11,17 +11,17 @@ import time
 from itertools import product
 from ptranking.base.utils import get_stacked_FFNet, get_resnet, LTRBatchNorm
 from ptranking.base.ranker import NeuralRanker
-from ptranking.ltr_adhoc.pretrain.augmentations import zeroes, qgswap, gaussian, categorical_augment
+from ptranking.ltr_adhoc.pretrain.augmentations import zeroes, qgswap, gaussian
 from ptranking.data.data_utils import LABEL_TYPE
 from ptranking.ltr_adhoc.eval.parameter import ModelParameter
 from ptranking.ltr_adhoc.util.lambda_utils import get_pairwise_comp_probs
 from absl import logging
+import torch.optim as optim
+
 import torch.nn.functional as F
 from ptranking.metric.metric_utils import get_delta_ndcg
 from torch.nn.init import eye_ as eye_init
 from torch.nn.init import zeros_ as zero_init
-from ptranking.data.binary_features import mslr_binary_features, yahoo_binary_features, istella_binary_features
-
 
 class ResNetBlock(nn.Module):
     def __init__(
@@ -72,7 +72,7 @@ class RankNeg(NeuralRanker):
         self.scale = model_para_dict['scale']
         self.gumbel = model_para_dict['gumbel']
         self.num_negatives = model_para_dict['num_negatives']
-        self.epochs_done = 0
+        self.epochs= 0
         self.loss = nn.CosineSimilarity(dim=1).to(self.device)
 
         if self.aug_type == 'zeroes':
@@ -97,9 +97,10 @@ class RankNeg(NeuralRanker):
     
 
     def init(self):
-        self.point_sf, self.projector = self.config_point_neural_scoring_function()
+        self.point_sf, self.projector, self.anti_score = self.config_point_neural_scoring_function()
         self.loss_no_reduction = torch.nn.CrossEntropyLoss(reduction='none').to(self.device)
         self.config_optimizer()
+        self.anti_optimizer = optim.Adam(self.anti_score.parameters(), lr = 5.0 * self.lr, weight_decay = self.weight_decay)
 
 
 
@@ -112,38 +113,38 @@ class RankNeg(NeuralRanker):
         return nn.ParameterList(all_params)
 
     def config_point_neural_scoring_function(self):
-        point_sf, projector = self.ini_pointsf(
+        point_sf, projector, anti_score = self.ini_pointsf(
             **self.sf_para_dict[self.sf_para_dict['sf_id']])
         if self.gpu: 
             point_sf = point_sf.to(self.device)
             projector = projector.to(self.device)
-        return point_sf, projector
+            anti_score = anti_score.to(self.device)
+        return point_sf, projector, anti_score
 
     def ini_pointsf(self, num_features=None, h_dim=100, out_dim=136, num_layers=3, AF='R', TL_AF='S', apply_tl_af=False,
                     BN=True, bn_type=None, bn_affine=False, dropout=0.1):
         '''
         Initialization of a feed-forward neural network
         '''
-        if num_features == 136:
-            dataset = 'mslr'
-            categorical_features = mslr_binary_features
-        elif num_features == 220:
-            dataset = 'istella'
-            categorical_features = istella_binary_features
-        elif num_features == 700:
-            dataset = 'yahoo'
-            categorical_features = yahoo_binary_features
-        else:
-            print('Num features not matching any of the dataasets')
-        self.categorical_features = categorical_features
         h_dim = 136
-        point_sf = self.get_resnet(num_features, 136)
+        point_sf = self.get_resnet(num_features, h_dim)
         projector = nn.Sequential(
+            nn.Linear(h_dim, h_dim),
+            nn.ReLU(),
             nn.Linear(h_dim, 1)
         )
         print('Running PAIRCON.......')
+        anti_score = nn.Sequential(
+            nn.Linear(num_features, num_features),
+            nn.ReLU(),
+            nn.Linear(num_features, h_dim),
+            nn.ReLU(),
+            nn.Linear(h_dim, h_dim),
+            nn.ReLU(),
+            nn.Linear(h_dim, 1)
+        )
 
-        return point_sf, projector
+        return point_sf, projector, anti_score
     def get_pairwise_comp_probs(self, batch_preds, batch_std_labels, sigma=None):
         '''
         Get the predicted and standard probabilities p_ij which denotes d_i beats d_j
@@ -160,8 +161,12 @@ class RankNeg(NeuralRanker):
         # computing pairwise differences w.r.t. standard labels, i.e., S_{ij}
         batch_std_diffs = torch.unsqueeze(batch_std_labels, dim=2) - torch.unsqueeze(batch_std_labels, dim=1)
         batch_std_p_ij = torch.sigmoid(sigma * batch_std_diffs)
+        probs_reshaped = torch.stack([1-batch_std_p_ij, batch_std_p_ij], dim=-1)
+        tau = 0.1  # Temperature parameter; adjust as needed
+        hard_samples = F.gumbel_softmax(probs_reshaped, tau=tau, hard=True, dim=-1)
+        hard_labels = hard_samples[..., 1]
+        return batch_p_ij, hard_labels
 
-        return batch_p_ij, batch_std_p_ij
     def forward(self, batch_q_doc_vectors):
         '''
         Forward pass through the scoring function, where each document is scored independently.
@@ -170,97 +175,10 @@ class RankNeg(NeuralRanker):
         '''
         data_dim, num_docs, num_features = batch_q_doc_vectors.shape
 
-        x1 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device, self.categorical_features)
-        x1 = categorical_augment(x1, self.aug_percent, self.device, self.categorical_features)
-        x2 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device, self.categorical_features)
-        x2 = categorical_augment(x2, self.aug_percent, self.device, self.categorical_features)
+        scores = self.projector(self.point_sf(batch_q_doc_vectors)).reshape((data_dim, num_docs))
+        labels = self.anti_score(batch_q_doc_vectors).reshape((data_dim, num_docs))
 
-        embed1 = self.point_sf(x1)
-        embed2 = self.point_sf(x2)
-        z1 = self.projector(embed1)
-        z2 = self.projector(embed2)
-
-        s1 = z1.view(data_dim, num_docs)
-        s2 = z2.view(data_dim, num_docs)
-
-        s_concat = torch.cat((s1, s2), dim=1)
-
-        logits_qg, labels_qg = self.paircon_loss(s_concat)
-
-        return logits_qg, labels_qg
-    
-    def paircon_loss(self, s_concat):
-        '''
-        s_concat: [batch_size, 2 * qgsize]
-        '''
-        batch_size = s_concat.shape[0]
-        qg_size = s_concat.shape[1]//2
-        # [batch_size, 2 * qg_size, 2 * qg_size]
-        batch_s_ij = torch.unsqueeze(s_concat, dim=2) - torch.unsqueeze(s_concat, dim=1)
-        # [batch_size, 2 * qg_size, 2 * qg_size]
-        batch_p_ij = torch.sigmoid(self.sigma * batch_s_ij)
-
-
-        # i1, i2 => f(i1), f(i2) (dim d) => scorer(f(i1) concat f(i2)) (scorer is like 3 layers) => 1 dimensional score 
-        # scorer(f(i1) concat f(i2)) (end of second layer output): embed_i1i2
-        # 
-        # Expanding dimensions for broadcasting
-        # batch_p_ij_expanded_ij repeats along the 'k' axis
-        # batch_p_ij_expanded_ik repeats along the 'j' axis
-        # This prepares both tensors for element-wise BCE computation
-
-        batch_p_ij_expanded_ij = batch_p_ij.unsqueeze(3).expand(-1, -1, -1, 2 * qg_size)
-        batch_p_ij_expanded_ik = batch_p_ij.unsqueeze(2).expand(-1, -1, 2 * qg_size, -1)
-        
-        # Asymmetry could avoid mode collapse
-        # s, s', plug into ranking loss, minimize only one end
-
-        # Now compute the binary cross entropy
-        # Note: F.binary_cross_entropy expects input in the form of (input, target),
-        # so we treat one of the expanded tensors as input and the other as target.
-        # The `reduction='none'` argument ensures we keep the full output dimensionality.
-        # The higher, the more similar.
-        # if self.num_negatives == 0:
-        #     epsilon = 1e-12
-        #     p1 = batch_p_ij_expanded_ij
-        #     p2 = batch_p_ij_expanded_ik
-        #     p1 = p1.clamp(min=epsilon, max=1-epsilon)
-        #     p2 = p2.clamp(min=epsilon, max=1-epsilon)
-        #     kl_divergence_p1_p2 = p1 * torch.log(p1 / p2) + (1 - p1) * torch.log((1 - p1) / (1 - p2))
-
-        #     # Compute KL divergence from p2 to p1
-        #     kl_divergence_p2_p1 = p2 * torch.log(p2 / p1) + (1 - p2) * torch.log((1 - p2) / (1 - p1))
-
-        #     # Compute symmetric KL divergence by averaging the two KL divergences
-        #     symmetric_kl_divergence = (kl_divergence_p1_p2 + kl_divergence_p2_p1) / 2
-        #     similarity_matrix = -symmetric_kl_divergence
-        # elif self.num_negatives == 1:
-        similarity_matrix = -F.mse_loss(batch_p_ij_expanded_ij, batch_p_ij_expanded_ik, reduction='none')
-
-        labels = torch.cat([torch.arange(qg_size) for i in range(2)], dim=0)
-        # [2 x qgsize, 2 x qgsize] 4 identity matrices in each quadrant
-        labels = (labels.unsqueeze(0) == labels.unsqueeze(1)).float()
-        labels = labels.to(self.device)
-        # [batchsize, 2 x qgsize, 2 x qgsize]
-        labels = labels[None, None, :, :].expand(batch_size, 2 * qg_size, -1, -1)
-
-        mask = torch.eye(labels.shape[2], dtype=torch.bool).to(self.device)[None, None, :].expand(batch_size, 2 * qg_size, -1, -1)
-        # erase self similarities
-        labels = labels[~mask].view(batch_size, 2 * qg_size, 2 * qg_size, -1).to(self.device)
-        similarity_matrix = similarity_matrix[~mask].view(batch_size, 2 * qg_size, 2 * qg_size, -1).to(self.device)
-
-        # get augmented pair similarities
-        positives = similarity_matrix[labels.bool()].view(batch_size, 2 * qg_size, 2 * qg_size, -1).to(self.device)
-        # get the non augmented pair similarities
-        negatives = similarity_matrix[~labels.bool()].view(batch_size, 2 * qg_size, 2 * qg_size, -1).to(self.device)
-        
-        logits = torch.cat([positives, negatives], dim=3)
-        labels = torch.zeros((logits.shape[0], logits.shape[1], logits.shape[2]), dtype=torch.long).to(self.device)
-
-        logits = logits / self.temperature
-
-
-        return logits, labels
+        return scores, labels
 
 
     def custom_loss_function(self, batch_preds, batch_std_labels, **kwargs):
@@ -269,27 +187,34 @@ class RankNeg(NeuralRanker):
         @param batch_std_labels: not used
         @param kwargs:
         @return:
+        
         '''
-        logits_qg, labels_qg = batch_preds
-        loss = self.loss_no_reduction(logits_qg.permute(0, 3, 2, 1), labels_qg)
-        loss = torch.mean(loss)
-        pred = torch.argmax(logits_qg, dim=3)
-        # [batchsize, 2 x qgsize]
-        correct = torch.sum(pred == labels_qg)
-        total_num = pred.shape[0] * pred.shape[1] * pred.shape[2]
+
+        scores, labels = batch_preds
+        batch_p_ij, batch_std_p_ij = self.get_pairwise_comp_probs(batch_preds=scores, batch_std_labels=labels, sigma=1.0)
+        print(batch_std_p_ij[0,0,:])
+        _batch_loss = F.binary_cross_entropy(input=torch.triu(batch_p_ij, diagonal=1),
+                                        target=torch.triu(batch_std_p_ij, diagonal=1), reduction='none')
+        batch_loss = torch.sum(torch.sum(_batch_loss, dim=(2, 1)))
         self.optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.point_sf.parameters(), 2.0)
+        batch_loss.backward(retain_graph=True)
+        
+
+        self.anti_optimizer.zero_grad()
+        (-batch_loss).backward()
         self.optimizer.step()
-        return loss, correct, total_num
+        self.anti_optimizer.step()
+        return batch_loss
 
     def eval_mode(self):
         self.point_sf.eval()
         self.projector.eval()
+        self.anti_score.eval()
 
     def train_mode(self):
         self.point_sf.train(mode=True)
         self.projector.train(mode=True)
+        self.anti_score.train(mode=True)
 
 
     def save(self, dir, name):
@@ -312,34 +237,39 @@ class RankNeg(NeuralRanker):
         One epoch training using the entire training data
         '''
         self.train_mode()
-
         assert 'label_type' in kwargs and 'presort' in kwargs
         label_type, presort = kwargs['label_type'], kwargs['presort']
         num_queries = 0
         epoch_loss = torch.tensor([0.0], device=self.device)
         batches_processed = 0
-        # self.optimizer.zero_grad()
-        all_correct = torch.tensor([0.0], device=self.device)
-        all_attempts = torch.tensor([0.0], device=self.device)
-        start_time = time.time()
+        # if self.epochs < 10:
+        #     for name, param in self.point_sf.named_parameters():
+        #         param.requires_grad = False
+        #     for name, param in self.projector.named_parameters():
+        #         param.requires_grad = False
+        #     for name, param in self.anti_score.named_parameters():
+        #         param.requires_grad = True
+        # else:
+        #     for name, param in self.point_sf.named_parameters():
+        #         param.requires_grad = True
+        #     for name, param in self.projector.named_parameters():
+        #         param.requires_grad = True
+        #     for name, param in self.anti_score.named_parameters():
+        #         param.requires_grad = False
         for batch_ids, batch_q_doc_vectors, batch_std_labels in train_data: # batch_size, [batch_size, num_docs, num_features], [batch_size, num_docs]
             num_queries += len(batch_ids)
             if self.gpu: batch_q_doc_vectors, batch_std_labels = batch_q_doc_vectors.to(self.device), batch_std_labels.to(self.device)
 
-            (batch_loss, correct, total_num), stop_training = self.train_op(batch_q_doc_vectors, batch_std_labels, batch_ids=batch_ids, epoch_k=epoch_k, presort=presort, label_type=label_type)
-            # loss = batch_loss/float(size_of_train_data)
-            # loss.backward()
+            batch_loss, stop_training = self.train_op(batch_q_doc_vectors, batch_std_labels, batch_ids=batch_ids, epoch_k=epoch_k, presort=presort, label_type=label_type)
+
             
             if stop_training:
                 break
             else:
                 epoch_loss += batch_loss.item()
             batches_processed += 1
-            all_correct += correct
-            all_attempts += total_num
-        # self.optimizer.step()
-        print('Epoch accuracy', all_correct/all_attempts, 'out of', all_attempts, file=sys.stderr)
 
+        self.epochs += 1
         epoch_loss = epoch_loss/batches_processed
         return epoch_loss, stop_training
     
